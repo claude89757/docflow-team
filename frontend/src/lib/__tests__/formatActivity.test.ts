@@ -113,9 +113,51 @@ describe('messageToActivity', () => {
     expect(entry!.content).toContain('返工')
   })
 
+  it('converts agent_message with from and to', () => {
+    const msg: WSMessage = { type: 'agent_message', from: 'content-editor', to: 'quality-reviewer', content: '已修改完成' }
+    const entry = messageToActivity(msg, 9)
+    expect(entry).not.toBeNull()
+    expect(entry!.type).toBe('agent_message')
+    expect(entry!.agent).toBe('content-editor')
+    expect(entry!.target).toBe('quality-reviewer')
+    expect(entry!.content).toBe('已修改完成')
+  })
+
+  it('converts agent_message with fallback agent/target fields', () => {
+    const msg: WSMessage = { type: 'agent_message', agent: 'format-designer', target: 'content-editor', content: '排版完成' }
+    const entry = messageToActivity(msg, 10)
+    expect(entry!.agent).toBe('format-designer')
+    expect(entry!.target).toBe('content-editor')
+  })
+
+  it('converts agent_message with unknown agents', () => {
+    const msg: WSMessage = { type: 'agent_message', from: 'unknown-uuid', to: 'another-uuid', content: 'test' }
+    const entry = messageToActivity(msg, 11)
+    expect(entry!.type).toBe('agent_message')
+    expect(entry!.agent).toBeUndefined()
+    expect(entry!.target).toBeUndefined()
+  })
+
+  it('converts rework_cycle', () => {
+    const msg: WSMessage = { type: 'rework_cycle', round: 2, max: 3, reviewer_notes: '词汇自然度不足' }
+    const entry = messageToActivity(msg, 12)
+    expect(entry).not.toBeNull()
+    expect(entry!.type).toBe('rework_request')
+    expect(entry!.agent).toBe('quality-reviewer')
+    expect(entry!.content).toContain('第 2/3 轮')
+    expect(entry!.content).toContain('词汇自然度不足')
+    expect(entry!.round).toBe(2)
+  })
+
+  it('converts rework_cycle without reviewer_notes', () => {
+    const msg: WSMessage = { type: 'rework_cycle', round: 3, max: 3 }
+    const entry = messageToActivity(msg, 13)
+    expect(entry!.content).toContain('需要返工')
+  })
+
   it('converts team_complete', () => {
     const msg: WSMessage = { type: 'team_complete' }
-    const entry = messageToActivity(msg, 9)
+    const entry = messageToActivity(msg, 14)
     expect(entry!.type).toBe('complete')
     expect(entry!.content).toContain('完成')
   })
@@ -127,10 +169,10 @@ describe('messageToActivity', () => {
 
   it('generates deterministic IDs from index and type', () => {
     const msg: WSMessage = { type: 'team_complete' }
-    const e1 = messageToActivity(msg, 5)
-    const e2 = messageToActivity(msg, 5)
+    const e1 = messageToActivity(msg, 7)
+    const e2 = messageToActivity(msg, 7)
     expect(e1!.id).toBe(e2!.id)
-    expect(e1!.id).toBe('act-5-team_complete')
+    expect(e1!.id).toBe('act-7-team_complete')
   })
 })
 
@@ -243,6 +285,28 @@ describe('deriveTeamState', () => {
     ]
     const state = deriveTeamState(messages)
     expect(state.phase).toBe('failed')
+  })
+
+  it('activates both members on agent_message', () => {
+    const messages: WSMessage[] = [
+      { type: 'team_status', status: 'started' },
+      { type: 'agent_message', from: 'content-editor', to: 'quality-reviewer', content: '已修改' },
+    ]
+    const state = deriveTeamState(messages)
+    expect(state.members['content-editor'].status).toBe('active')
+    expect(state.members['quality-reviewer'].status).toBe('active')
+    expect(state.activities.some(a => a.type === 'agent_message')).toBe(true)
+  })
+
+  it('updates round on rework_cycle event', () => {
+    const messages: WSMessage[] = [
+      { type: 'team_status', status: 'started' },
+      { type: 'rework_cycle', round: 2, max: 3, reviewer_notes: '需改进' },
+    ]
+    const state = deriveTeamState(messages)
+    expect(state.round).toBe(2)
+    expect(state.members['content-editor'].status).toBe('active')
+    expect(state.activities.some(a => a.type === 'round_start' && a.round === 2)).toBe(true)
   })
 
   it('handles multi-round rework cycle', () => {

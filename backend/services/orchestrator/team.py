@@ -7,6 +7,7 @@ Hooks 捕获生命周期事件 → WebSocket 推送到前端。
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import re
@@ -46,17 +47,53 @@ def _infer_agent_from_task(subject: str) -> str:
 
 
 def _extract_score_from_text(text: str) -> dict | None:
-    """从最终报告文本中提取评分（submit_score 未被调用时的 fallback）"""
-    import re
+    """从文本中提取评分（submit_score 未被调用时的 fallback）
 
-    # 匹配各种 Markdown 格式的评分：**评分**: 8.3/10, 评分：8.3 / 10 等
+    支持从 reviewer 回复或最终报告中提取，按优先级尝试:
+    1. 各维度独立分数 → 加权计算总分
+    2. 总分直接提取 → 均匀分配到各维度
+    """
+    # 维度关键词 → 字段名映射
+    dim_patterns = {
+        "vocabulary_naturalness": r"词汇自然[度感]?\**[：:]*\s*\**\s*(\d+\.?\d*)",
+        "sentence_diversity": r"句式多样[性度]?\**[：:]*\s*\**\s*(\d+\.?\d*)",
+        "format_humanity": r"格式人类[感度]?\**[：:]*\s*\**\s*(\d+\.?\d*)",
+        "logical_coherence": r"逻辑连贯[性度]?\**[：:]*\s*\**\s*(\d+\.?\d*)",
+        "domain_adaptation": r"领域适配[度性]?\**[：:]*\s*\**\s*(\d+\.?\d*)",
+    }
+    weights = {
+        "vocabulary_naturalness": 0.3,
+        "sentence_diversity": 0.2,
+        "format_humanity": 0.25,
+        "logical_coherence": 0.15,
+        "domain_adaptation": 0.1,
+    }
+
+    # 尝试提取各维度分数
+    dims: dict[str, float] = {}
+    for key, pattern in dim_patterns.items():
+        m = re.search(pattern, text)
+        if m:
+            dims[key] = float(m.group(1))
+
+    if len(dims) >= 3:  # 至少匹配 3 个维度才有效
+        for key in dim_patterns:
+            if key not in dims:
+                dims[key] = sum(dims.values()) / len(dims)  # 缺失维度用均值填充
+        total = sum(dims.get(k, 0) * w for k, w in weights.items())
+        passed = total >= 8.0
+        return {**{k: round(v, 1) for k, v in dims.items()}, "total": round(total, 1), "passed": passed}
+
+    # Fallback: 从总分直接提取
     match = re.search(r"评分\**[：:]*\s*\**\s*(\d+\.?\d*)\s*/\s*10", text)
+    if not match:
+        # 也尝试 "总分: 8.3" 格式
+        match = re.search(r"总分\**[：:]*\s*\**\s*(\d+\.?\d*)", text)
     if not match:
         return None
 
     total = float(match.group(1))
     passed = total >= 8.0
-    # 没有维度明细时，用总分均匀分配作为近似值
     return {
         "vocabulary_naturalness": round(total, 1),
         "sentence_diversity": round(total, 1),
@@ -189,7 +226,7 @@ async def run_team(
     rework_state = {"round": 1}
     agent_id_map: dict[str, str] = {}  # SDK UUID → agent key
     last_agent_desc = {"value": ""}  # 最近一次 Agent 调用的 description
-    score_sent = {"value": False}  # 是否已发送过 score_update
+    score_sent = {"count": 0}  # 已发送 score_update 的次数
 
     # === Hooks ===
 
@@ -314,19 +351,26 @@ async def run_team(
             tool_result = input_data.get("tool_result", "")
             try:
                 scores = json.loads(tool_result) if isinstance(tool_result, str) else tool_result
-                # 持久化评分供报告生成使用
-                (Path(task_dir) / "scores.json").write_text(json.dumps(scores, ensure_ascii=False))
-                await ws_manager.send(
-                    task_id,
-                    {
-                        "type": "score_update",
-                        "scores": scores,
-                    },
-                )
-                score_sent["value"] = True
+                await _emit_score(scores)
             except (json.JSONDecodeError, TypeError):
                 pass
+
+        # 当 quality-reviewer Agent 完成时，从回复文本中提取评分作为 fallback
+        elif tool_name == "Agent" and _match_agent_key(last_agent_desc["value"]) == "quality-reviewer":
+            tool_response = input_data.get("tool_response", "")
+            if score_sent["count"] < rework_state["round"] and isinstance(tool_response, str):
+                fallback = _extract_score_from_text(tool_response)
+                if fallback:
+                    await _emit_score(fallback)
+
         return {}
+
+    async def _emit_score(scores: dict):
+        """推送评分并持久化"""
+        with contextlib.suppress(OSError):
+            (Path(task_dir) / "scores.json").write_text(json.dumps(scores, ensure_ascii=False))
+        await ws_manager.send(task_id, {"type": "score_update", "scores": scores})
+        score_sent["count"] += 1
 
     options = ClaudeAgentOptions(
         env={"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"},
@@ -379,14 +423,11 @@ async def run_team(
                             )
 
                     if hasattr(message, "result") and message.result:
-                        # 如果 reviewer 未调用 submit_score，从文本中提取评分
-                        if not score_sent["value"]:
+                        # 最终 fallback: 如果从未收到评分，从报告文本中提取
+                        if score_sent["count"] == 0:
                             fallback = _extract_score_from_text(message.result)
                             if fallback:
-                                await ws_manager.send(
-                                    task_id,
-                                    {"type": "score_update", "scores": fallback},
-                                )
+                                await _emit_score(fallback)
 
                         output_exists = Path(output_path).exists() and Path(output_path).stat().st_size > 0
 
