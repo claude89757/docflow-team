@@ -1,159 +1,77 @@
 import { useState, useCallback } from 'react'
-import { UploadZone } from './components/UploadZone'
-import { AgentPanel } from './components/AgentPanel'
+import { AppShell } from './components/AppShell'
+import { UploadCard } from './components/landing/UploadCard'
+import { GenerateCard } from './components/landing/GenerateCard'
+import { TeamWorkspace } from './components/workspace/TeamWorkspace'
+import { ResultsPanel } from './components/results/ResultsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
-
-const API_URL = import.meta.env.VITE_API_URL || ''
+import { Users, Upload, Sparkles } from 'lucide-react'
 
 function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const { messages, connected } = useWebSocket(taskId)
 
   const pipelineComplete = messages.some(m => m.type === 'pipeline_complete')
-  const pipelineResult = messages.find(m => m.type === 'pipeline_complete')
   const pipelineFailed = messages.some(m => m.type === 'pipeline_status' && m.status === 'failed')
 
   const handleTask = useCallback((id: string) => {
     setTaskId(id)
   }, [])
 
-  return (
-    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '32px 24px', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ marginBottom: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', margin: 0 }}>
-          docflow-team
-        </h1>
-        <p style={{ color: '#6b7280', margin: '4px 0 0' }}>
-          AI 文档精修团队 — 生成、编辑、排版、审核，全程可视化
-        </p>
-        {taskId && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ fontSize: 13, color: '#9ca3af' }}>
-              Task: {taskId}
-            </span>
-            <span style={{
-              width: 8, height: 8, borderRadius: '50%',
-              background: connected ? '#22c55e' : '#ef4444',
-            }} />
-            <span style={{ fontSize: 12, color: connected ? '#22c55e' : '#ef4444' }}>
-              {connected ? 'WebSocket 已连接' : '未连接'}
-            </span>
-          </div>
-        )}
-      </header>
+  const handleReset = useCallback(() => {
+    setTaskId(null)
+  }, [])
 
-      {/* 未开始: 显示上传/生成区 */}
+  return (
+    <AppShell taskId={taskId} connected={connected} onReset={handleReset}>
+      {/* Landing: no task */}
       {!taskId && (
-        <UploadZone onUploaded={handleTask} onGenerate={handleTask} />
+        <div className="animate-fade-in">
+          {/* Hero */}
+          <div className="mb-10 text-center">
+            <h1 className="mb-3 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
+              AI 文档精修团队
+            </h1>
+            <p className="mx-auto max-w-lg text-base text-slate-500">
+              由多位 AI 专家组成的自主团队，协作完成文档生成、内容编辑、排版设计和质量审核
+            </p>
+            <div className="mt-4 flex items-center justify-center gap-6 text-sm text-slate-400">
+              <span className="flex items-center gap-1.5">
+                <Users className="h-4 w-4" /> 4 位 AI 专家
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Upload className="h-4 w-4" /> docx / pptx / xlsx / pdf
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4" /> 自主协作
+              </span>
+            </div>
+          </div>
+
+          {/* Upload + Generate cards */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div>
+              <h3 className="mb-3 text-sm font-medium text-slate-500">上传已有文档</h3>
+              <UploadCard onTask={handleTask} />
+            </div>
+            <div>
+              <h3 className="mb-3 text-sm font-medium text-slate-500">从描述生成</h3>
+              <GenerateCard onTask={handleTask} />
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* 进行中: 显示 Agent 面板 */}
+      {/* Processing: task active */}
       {taskId && (
         <>
-          <AgentPanel messages={messages} />
-
-          {/* 完成: 显示结果 + 下载 */}
-          {pipelineComplete && (
-            <div style={{
-              marginTop: 24,
-              padding: 20,
-              background: '#f0fdf4',
-              border: '1px solid #bbf7d0',
-              borderRadius: 12,
-            }}>
-              <h3 style={{ margin: '0 0 12px', color: '#166534' }}>处理完成</h3>
-              <p style={{ color: '#374151', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                {String(pipelineResult?.result || '').slice(0, 800)}
-              </p>
-              <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <a
-                  href={`${API_URL}/api/download/${taskId}`}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#22c55e',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    textDecoration: 'none',
-                    fontSize: 14,
-                    fontWeight: 500,
-                  }}
-                >
-                  下载精修版
-                </a>
-                <a
-                  href={`${API_URL}/api/download/${taskId}/original`}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#fff',
-                    color: '#374151',
-                    border: '1px solid #d1d5db',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    textDecoration: 'none',
-                    fontSize: 14,
-                  }}
-                >
-                  下载原始版
-                </a>
-                <button
-                  onClick={() => { setTaskId(null) }}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#4f46e5',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontSize: 14,
-                  }}
-                >
-                  处理新文档
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* 失败 */}
-          {pipelineFailed && (
-            <div style={{
-              marginTop: 24,
-              padding: 20,
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              borderRadius: 12,
-            }}>
-              <h3 style={{ margin: '0 0 12px', color: '#991b1b' }}>处理失败</h3>
-              <p style={{ color: '#374151' }}>
-                {String(messages.find(m => m.type === 'pipeline_status' && m.status === 'failed')?.error || '未知错误')}
-              </p>
-              <button
-                onClick={() => { setTaskId(null) }}
-                style={{
-                  marginTop: 12,
-                  padding: '10px 20px',
-                  background: '#4f46e5',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                }}
-              >
-                重试
-              </button>
-            </div>
+          <TeamWorkspace messages={messages} />
+          {(pipelineComplete || pipelineFailed) && (
+            <ResultsPanel taskId={taskId} messages={messages} onReset={handleReset} />
           )}
         </>
       )}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
-    </div>
+    </AppShell>
   )
 }
 
