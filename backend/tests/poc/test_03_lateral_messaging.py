@@ -20,7 +20,7 @@ async def test_lateral_messaging():
     print("POC #3: Teammate 横向消息")
     print("=" * 60)
 
-    from claude_agent_sdk import query, ClaudeAgentOptions, AgentDefinition
+    from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions, query
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -100,11 +100,11 @@ async def test_lateral_messaging():
         print(f"结果: {result_text[:400]}")
         has_lateral = "直接" in result_text or "消息" in result_text or send_message_count >= 2
         if has_lateral:
-            print(f"\nPOC #3: PASS (检测到横向消息)")
+            print("\nPOC #3: PASS (检测到横向消息)")
         else:
-            print(f"\nPOC #3: PARTIAL (完成但未确认横向消息)")
+            print("\nPOC #3: PARTIAL (完成但未确认横向消息)")
     else:
-        print(f"\nPOC #3: FAIL")
+        print("\nPOC #3: FAIL")
 
     return result_text is not None
 

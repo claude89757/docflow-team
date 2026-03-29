@@ -22,7 +22,7 @@ async def test_dynamic_loop():
     print("POC #4: 动态审核循环")
     print("=" * 60)
 
-    from claude_agent_sdk import query, ClaudeAgentOptions, AgentDefinition
+    from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions, query
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -105,11 +105,11 @@ async def test_dynamic_loop():
         print(f"结果:\n{result_text[:500]}")
         has_loop = any(kw in result_text for kw in ["轮", "循环", "返工", "round", "loop"])
         if has_loop:
-            print(f"\nPOC #4: PASS (检测到循环)")
+            print("\nPOC #4: PASS (检测到循环)")
         else:
-            print(f"\nPOC #4: PARTIAL (完成但未确认循环)")
+            print("\nPOC #4: PARTIAL (完成但未确认循环)")
     else:
-        print(f"\nPOC #4: FAIL")
+        print("\nPOC #4: FAIL")
 
     return result_text is not None
 

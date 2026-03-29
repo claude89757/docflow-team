@@ -20,7 +20,7 @@ async def test_teammates():
     print("POC #2: Teammate 创建 + 任务分配")
     print("=" * 60)
 
-    from claude_agent_sdk import query, ClaudeAgentOptions, AgentDefinition
+    from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions, query
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
@@ -90,9 +90,9 @@ async def test_teammates():
     print(f"Agent 事件: {agent_events}")
     if result_text:
         print(f"结果: {result_text[:300]}")
-        print(f"\nPOC #2: PASS")
+        print("\nPOC #2: PASS")
     else:
-        print(f"\nPOC #2: FAIL (无结果)")
+        print("\nPOC #2: FAIL (无结果)")
 
     return result_text is not None
 

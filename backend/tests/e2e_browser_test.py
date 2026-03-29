@@ -5,7 +5,7 @@ E2E 浏览器联调测试: 通过 Vite proxy (localhost:5173) 跑完整流程
 """
 import asyncio
 import json
-import sys
+
 import httpx
 import websockets
 
@@ -29,7 +29,7 @@ async def main():
         print(f"  task_id={task_id}")
 
     # 2. WebSocket
-    print(f"\n[2/5] WebSocket 连接...")
+    print("\n[2/5] WebSocket 连接...")
     events = []
     agent_timeline = []
 
@@ -57,12 +57,12 @@ async def main():
                     elif t == "pipeline_status" and data.get("status") == "failed":
                         print(f"  [{len(events):3d}] FAILED: {data.get('error')}")
                         return
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     print("  TIMEOUT")
                     return
 
     # 3. 触发处理
-    print(f"\n[3/5] 触发管线...")
+    print("\n[3/5] 触发管线...")
     ws_task = asyncio.create_task(listen())
     await asyncio.sleep(1)
 
@@ -73,7 +73,7 @@ async def main():
     await ws_task
 
     # 4. 下载验证
-    print(f"\n[4/5] 下载验证...")
+    print("\n[4/5] 下载验证...")
     async with httpx.AsyncClient() as client:
         res = await client.get(f"{PROXY}/api/download/{task_id}")
         if res.status_code == 200:
@@ -92,7 +92,7 @@ async def main():
         print(f"  状态: {res3.json()}")
 
     # 5. 汇总
-    print(f"\n[5/5] 汇总")
+    print("\n[5/5] 汇总")
     print("=" * 60)
     print(f"WebSocket 事件: {len(events)}")
 
@@ -102,7 +102,7 @@ async def main():
         types[t] = types.get(t, 0) + 1
     print(f"事件分布: {json.dumps(types, ensure_ascii=False)}")
 
-    print(f"\nAgent 时间线:")
+    print("\nAgent 时间线:")
     for entry in agent_timeline:
         print(f"  {entry}")
 

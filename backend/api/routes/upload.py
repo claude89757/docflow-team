@@ -1,8 +1,9 @@
-import os
 import uuid
-import aiofiles
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, HTTPException
+
+import aiofiles
+from fastapi import APIRouter, File, HTTPException, UploadFile
+
 from backend.models.schemas import UploadResponse
 
 router = APIRouter()
@@ -26,7 +27,7 @@ async def upload_document(file: UploadFile = File(...)):
     if len(content) == 0:
         raise HTTPException(400, "文件为空")
     if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(400, f"文件超过 {MAX_FILE_SIZE // (1024*1024)}MB 限制")
+        raise HTTPException(400, f"文件超过 {MAX_FILE_SIZE // (1024 * 1024)}MB 限制")
 
     # 生成 task_id 并保存
     task_id = str(uuid.uuid4())[:8]

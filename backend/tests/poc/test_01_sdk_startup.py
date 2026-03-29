@@ -24,7 +24,7 @@ async def test_basic_query():
     # Step 1: Import 验证
     print("\n[1/3] Import claude_agent_sdk...")
     try:
-        from claude_agent_sdk import query, ClaudeAgentOptions
+        from claude_agent_sdk import ClaudeAgentOptions, query
         print("  OK: claude_agent_sdk imported")
     except ImportError as e:
         print(f"  FAIL: {e}")
@@ -69,7 +69,7 @@ async def test_basic_query():
     # 结果
     print("\n" + "=" * 60)
     if result_text:
-        print(f"POC #1: PASS")
+        print("POC #1: PASS")
         print(f"  消息数: {message_count}")
         print(f"  结果: {result_text[:200]}")
     else:

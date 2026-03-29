@@ -1,8 +1,10 @@
 """创建一个充满 AI 味的测试 Word 文档"""
-from docx import Document
-from docx.shared import Pt, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+
 from pathlib import Path
+
+from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Pt
 
 
 def create_ai_flavored_doc(output_path: str):

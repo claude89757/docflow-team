@@ -1,7 +1,8 @@
 import uuid
-import asyncio
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
 from backend.models.schemas import GenerateRequest, GenerateResponse, TaskStatus
 from backend.services.orchestrator.pipeline import run_pipeline
 from backend.services.ws_manager import ws_manager

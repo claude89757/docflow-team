@@ -1,11 +1,6 @@
-import copy
-import json
-import os
-from pathlib import Path
 from docx import Document
-from docx.shared import Pt, Emu
 from docx.oxml.ns import qn
-from typing import Optional
+from docx.shared import Pt
 
 
 class DocxProcessor:
@@ -16,22 +11,24 @@ class DocxProcessor:
         doc = Document(file_path)
         paragraphs = []
         for i, para in enumerate(doc.paragraphs):
-            paragraphs.append({
-                "index": i,
-                "text": para.text,
-                "style": para.style.name if para.style else None,
-                "alignment": str(para.alignment) if para.alignment else None,
-                "runs": [
-                    {
-                        "text": run.text,
-                        "bold": run.bold,
-                        "italic": run.italic,
-                        "font_name": run.font.name,
-                        "font_size": str(run.font.size) if run.font.size else None,
-                    }
-                    for run in para.runs
-                ],
-            })
+            paragraphs.append(
+                {
+                    "index": i,
+                    "text": para.text,
+                    "style": para.style.name if para.style else None,
+                    "alignment": str(para.alignment) if para.alignment else None,
+                    "runs": [
+                        {
+                            "text": run.text,
+                            "bold": run.bold,
+                            "italic": run.italic,
+                            "font_name": run.font.name,
+                            "font_size": str(run.font.size) if run.font.size else None,
+                        }
+                        for run in para.runs
+                    ],
+                }
+            )
 
         tables = []
         for i, table in enumerate(doc.tables):
@@ -169,7 +166,7 @@ class DocxProcessor:
             return [paragraphs[i] for i in scope if 0 <= i < len(paragraphs)]
         return []
 
-    def _set_cjk_font(self, run, font_name: Optional[str]):
+    def _set_cjk_font(self, run, font_name: str | None):
         """设置 CJK 字体 (python-docx 高级 API 不支持 eastAsia 字体)"""
         if not font_name:
             return

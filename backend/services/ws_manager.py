@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Set
+
 from fastapi import WebSocket
 
 
@@ -7,7 +7,7 @@ class WSManager:
     """管理 WebSocket 连接，按 task_id 分组广播"""
 
     def __init__(self):
-        self._connections: Dict[str, Set[WebSocket]] = {}
+        self._connections: dict[str, set[WebSocket]] = {}
 
     async def connect(self, task_id: str, ws: WebSocket):
         await ws.accept()

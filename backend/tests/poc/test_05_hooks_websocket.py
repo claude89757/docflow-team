@@ -21,7 +21,7 @@ async def test_hooks_websocket():
     print("POC #5: Hooks → WebSocket 推送")
     print("=" * 60)
 
-    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AgentDefinition, HookMatcher
+    from claude_agent_sdk import AgentDefinition, ClaudeAgentOptions, ClaudeSDKClient, HookMatcher
     from claude_agent_sdk.types import StreamEvent
 
     api_key = os.environ.get("ANTHROPIC_API_KEY")
@@ -193,7 +193,7 @@ async def test_hooks_websocket():
         print(f"\n事件来源: {sources}")
         print(f"POC #5: PASS ({len(collected_events)} 个事件)")
     else:
-        print(f"\nPOC #5: FAIL")
+        print("\nPOC #5: FAIL")
 
     return len(collected_events) > 0
 

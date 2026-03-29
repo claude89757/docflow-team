@@ -3,12 +3,12 @@
 使用 ClaudeSDKClient + Agent Teams 运行 4-agent 文档处理管线。
 Hooks 捕获生命周期事件 → WebSocket 推送到前端。
 """
-import os
+
 import json
 import traceback
 from pathlib import Path
 
-from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, HookMatcher
+from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, HookMatcher
 from claude_agent_sdk.types import StreamEvent
 
 from backend.services.orchestrator.agents import AGENTS, docflow_tools
@@ -26,11 +26,14 @@ async def run_pipeline(
 ):
     """运行完整文档处理管线"""
 
-    await ws_manager.send(task_id, {
-        "type": "pipeline_status",
-        "status": "started",
-        "task_id": task_id,
-    })
+    await ws_manager.send(
+        task_id,
+        {
+            "type": "pipeline_status",
+            "status": "started",
+            "task_id": task_id,
+        },
+    )
 
     # 构建 Team Lead prompt
     output_path = str(Path(task_dir) / f"output.{doc_format}")
@@ -147,30 +150,39 @@ async def run_pipeline(
         tool_name = input_data.get("tool_name", "")
         if tool_name in ("Agent", "SendMessage"):
             tool_input = input_data.get("tool_input", {})
-            await ws_manager.send(task_id, {
-                "type": "tool_call",
-                "tool": tool_name,
-                "target": tool_input.get("to", tool_input.get("description", "")),
-                "status": "started",
-            })
+            await ws_manager.send(
+                task_id,
+                {
+                    "type": "tool_call",
+                    "tool": tool_name,
+                    "target": tool_input.get("to", tool_input.get("description", "")),
+                    "status": "started",
+                },
+            )
         return {}
 
     async def on_subagent_start(input_data, tool_use_id, context):
         desc = input_data.get("description", "unknown")
-        await ws_manager.send(task_id, {
-            "type": "agent_status",
-            "agent": desc,
-            "status": "working",
-        })
+        await ws_manager.send(
+            task_id,
+            {
+                "type": "agent_status",
+                "agent": desc,
+                "status": "working",
+            },
+        )
         return {}
 
     async def on_subagent_stop(input_data, tool_use_id, context):
         agent_id = input_data.get("agent_id", "unknown")
-        await ws_manager.send(task_id, {
-            "type": "agent_status",
-            "agent": agent_id,
-            "status": "completed",
-        })
+        await ws_manager.send(
+            task_id,
+            {
+                "type": "agent_status",
+                "agent": agent_id,
+                "status": "completed",
+            },
+        )
         return {}
 
     async def on_post_tool(input_data, tool_use_id, context):
@@ -180,10 +192,13 @@ async def run_pipeline(
             tool_result = input_data.get("tool_result", "")
             try:
                 scores = json.loads(tool_result) if isinstance(tool_result, str) else tool_result
-                await ws_manager.send(task_id, {
-                    "type": "score_update",
-                    "scores": scores,
-                })
+                await ws_manager.send(
+                    task_id,
+                    {
+                        "type": "score_update",
+                        "scores": scores,
+                    },
+                )
             except (json.JSONDecodeError, TypeError):
                 pass
         return {}
@@ -199,7 +214,13 @@ async def run_pipeline(
         },
         mcp_servers={"docflow-tools": docflow_tools},
         allowed_tools=[
-            "Read", "Write", "Bash", "Agent", "TaskCreate", "TaskUpdate", "SendMessage",
+            "Read",
+            "Write",
+            "Bash",
+            "Agent",
+            "TaskCreate",
+            "TaskUpdate",
+            "SendMessage",
             "mcp__docflow-tools__*",
         ],
         permission_mode="acceptEdits",
@@ -211,32 +232,39 @@ async def run_pipeline(
         async with ClaudeSDKClient(options=options) as client:
             await client.query(lead_prompt)
             async for message in client.receive_response():
-                msg_type = type(message).__name__
-
                 # 转发流式事件
                 if isinstance(message, StreamEvent):
                     event = message.event if hasattr(message, "event") else {}
                     event_type = event.get("type", "") if isinstance(event, dict) else ""
                     # 只转发关键事件，不转发每个 token
                     if event_type in ("content_block_start", "content_block_stop"):
-                        await ws_manager.send(task_id, {
-                            "type": "stream_event",
-                            "event_type": event_type,
-                        })
+                        await ws_manager.send(
+                            task_id,
+                            {
+                                "type": "stream_event",
+                                "event_type": event_type,
+                            },
+                        )
 
                 # 最终结果
                 if hasattr(message, "result") and message.result:
-                    await ws_manager.send(task_id, {
-                        "type": "pipeline_complete",
-                        "status": "completed",
-                        "result": message.result,
-                        "output_file": output_path if Path(output_path).exists() else None,
-                    })
+                    await ws_manager.send(
+                        task_id,
+                        {
+                            "type": "pipeline_complete",
+                            "status": "completed",
+                            "result": message.result,
+                            "output_file": output_path if Path(output_path).exists() else None,
+                        },
+                    )
 
     except Exception as e:
-        await ws_manager.send(task_id, {
-            "type": "pipeline_status",
-            "status": "failed",
-            "error": f"{type(e).__name__}: {str(e)}",
-        })
+        await ws_manager.send(
+            task_id,
+            {
+                "type": "pipeline_status",
+                "status": "failed",
+                "error": f"{type(e).__name__}: {str(e)}",
+            },
+        )
         traceback.print_exc()

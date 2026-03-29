@@ -6,9 +6,9 @@ E2E 测试: 上传 docx → 跑管线 → 收集 WebSocket 事件
 import asyncio
 import json
 import sys
+
 import httpx
 import websockets
-
 
 API = "http://localhost:8000"
 WS = "ws://localhost:8000"
@@ -70,14 +70,14 @@ async def main():
                             print(f"  [WS] 工具: {data.get('tool', '?')} → {data.get('target', '')}")
                         else:
                             print(f"  [WS] {evt_type}")
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         print("  TIMEOUT: 等待超时 (5 min)")
                         return
         except Exception as e:
             print(f"  WS ERROR: {e}")
 
     # Step 3: 触发处理（同时监听 WS）
-    print(f"\n[3/4] 触发管线处理...")
+    print("\n[3/4] 触发管线处理...")
     ws_task = asyncio.create_task(listen_ws())
 
     # 等一下让 WS 连上
@@ -89,13 +89,13 @@ async def main():
             print(f"  FAIL: {res.status_code} {res.text}")
             ws_task.cancel()
             sys.exit(1)
-        print(f"  OK: 管线已启动")
+        print("  OK: 管线已启动")
 
     # 等待管线完成
     await ws_task
 
     # Step 4: 汇总
-    print(f"\n[4/4] 汇总")
+    print("\n[4/4] 汇总")
     print("=" * 60)
     print(f"WebSocket 事件总数: {len(ws_events)}")
 
@@ -114,11 +114,11 @@ async def main():
     print(f"评分事件: {'YES' if has_score else 'NO'}")
 
     if has_complete:
-        print(f"\nE2E: PASS")
+        print("\nE2E: PASS")
     elif has_agent_events:
-        print(f"\nE2E: PARTIAL (有 agent 事件但管线未完成)")
+        print("\nE2E: PARTIAL (有 agent 事件但管线未完成)")
     else:
-        print(f"\nE2E: FAIL")
+        print("\nE2E: FAIL")
 
     return has_complete
 

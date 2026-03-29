@@ -29,7 +29,7 @@ async def test_custom_tools():
     # Step 1: 注册自定义工具
     print("\n[1/3] 注册自定义工具...")
     try:
-        from claude_agent_sdk import query, ClaudeAgentOptions, tool, create_sdk_mcp_server
+        from claude_agent_sdk import ClaudeAgentOptions, create_sdk_mcp_server, query, tool
 
         tool_call_log = []
 
@@ -99,18 +99,18 @@ async def test_custom_tools():
         print(f"  ERROR: {type(e).__name__}: {e}")
 
     # Step 3: 验证
-    print(f"\n[3/3] 验证工具调用日志...")
+    print("\n[3/3] 验证工具调用日志...")
     print(f"  工具被调用次数: {len(tool_call_log)}")
     for call in tool_call_log:
         print(f"    {call}")
 
     print("\n" + "=" * 60)
     if len(tool_call_log) >= 2:
-        print(f"POC #6: PASS (两个工具都被调用)")
+        print("POC #6: PASS (两个工具都被调用)")
     elif len(tool_call_log) == 1:
-        print(f"POC #6: PARTIAL (只有 1 个工具被调用)")
+        print("POC #6: PARTIAL (只有 1 个工具被调用)")
     else:
-        print(f"POC #6: FAIL (没有工具被调用)")
+        print("POC #6: FAIL (没有工具被调用)")
 
     if result_text:
         print(f"结果: {result_text[:300]}")

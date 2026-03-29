@@ -1,8 +1,10 @@
 """Agent 角色定义 + 自定义工具"""
-import json
-from claude_agent_sdk import AgentDefinition, tool, create_sdk_mcp_server
-from backend.processors.docx_processor import DocxProcessor
 
+import json
+
+from claude_agent_sdk import AgentDefinition, create_sdk_mcp_server, tool
+
+from backend.processors.docx_processor import DocxProcessor
 
 # === Agent 角色 ===
 
@@ -125,18 +127,14 @@ async def parse_docx_tool(args):
     return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}
 
 
-@tool("replace_paragraphs", "替换指定段落文本（保留格式）", {
-    "file_path": str, "output_path": str, "replacements": str
-})
+@tool("replace_paragraphs", "替换指定段落文本（保留格式）", {"file_path": str, "output_path": str, "replacements": str})
 async def replace_paragraphs_tool(args):
     replacements = json.loads(args["replacements"])  # {"0": "新文本", "3": "新文本"}
     out = _processor.replace_paragraph_text(args["file_path"], replacements, args["output_path"])
     return {"content": [{"type": "text", "text": f"段落替换完成，输出: {out}"}]}
 
 
-@tool("apply_format_changes", "执行 JSON 格式修改指令", {
-    "file_path": str, "output_path": str, "changes": str
-})
+@tool("apply_format_changes", "执行 JSON 格式修改指令", {"file_path": str, "output_path": str, "changes": str})
 async def apply_format_changes_tool(args):
     changes = json.loads(args["changes"])
     out = _processor.apply_format_changes(args["file_path"], changes, args["output_path"])
@@ -146,6 +144,7 @@ async def apply_format_changes_tool(args):
 @tool("write_document", "将文本内容写入 docx 文件", {"output_path": str, "content": str})
 async def write_document_tool(args):
     from docx import Document
+
     doc = Document()
     for line in args["content"].split("\n"):
         line = line.strip()
@@ -185,6 +184,5 @@ async def submit_score_tool(args):
 docflow_tools = create_sdk_mcp_server(
     name="docflow-tools",
     version="1.0.0",
-    tools=[parse_docx_tool, replace_paragraphs_tool, apply_format_changes_tool,
-           write_document_tool, submit_score_tool],
+    tools=[parse_docx_tool, replace_paragraphs_tool, apply_format_changes_tool, write_document_tool, submit_score_tool],
 )

@@ -1,9 +1,9 @@
-from enum import Enum
+from enum import StrEnum
+
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     PENDING = "pending"
     PARSING = "parsing"
     GENERATING = "generating"
@@ -15,14 +15,14 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
 
 
-class AgentRole(str, Enum):
+class AgentRole(StrEnum):
     GENERATOR = "content-generator"
     EDITOR = "content-editor"
     FORMATTER = "format-designer"
     REVIEWER = "quality-reviewer"
 
 
-class AgentStatus(str, Enum):
+class AgentStatus(StrEnum):
     PENDING = "pending"
     WORKING = "working"
     IDLE = "idle"
@@ -33,7 +33,7 @@ class AgentStatus(str, Enum):
 class GenerateRequest(BaseModel):
     description: str = Field(..., min_length=1, max_length=5000)
     format: str = Field(default="docx", pattern="^(docx|pptx|xlsx|pdf)$")
-    style_dna_id: Optional[str] = None
+    style_dna_id: str | None = None
 
 
 class UploadResponse(BaseModel):
