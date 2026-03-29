@@ -1,17 +1,26 @@
-import { Loader2 } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 import { useUsage } from '../../hooks/useUsage'
 import { StatCard } from './StatCard'
 import { TokenChart } from './TokenChart'
 import { TaskHistory } from './TaskHistory'
 
 export function UsageDashboard() {
-  const { summary, history, loading } = useUsage()
+  const { summary, history, loading, error } = useUsage()
 
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-20 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
         <Loader2 className="h-4 w-4 animate-spin" />
         加载中...
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="animate-fade-in flex flex-col items-center justify-center gap-3 py-20">
+        <AlertCircle className="h-8 w-8" style={{ color: 'var(--color-text-tertiary)' }} />
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{error}</p>
       </div>
     )
   }

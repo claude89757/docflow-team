@@ -6,6 +6,7 @@ export function useUsage() {
   const [summary, setSummary] = useState<UsageSummary | null>(null)
   const [history, setHistory] = useState<TaskUsageRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -19,8 +20,11 @@ export function useUsage() {
           const data = await histRes.json()
           setHistory(data.items || [])
         }
+        if (!sumRes.ok && !histRes.ok) {
+          setError('无法加载用量数据')
+        }
       } catch {
-        // ignore
+        setError('网络错误，无法连接服务')
       } finally {
         setLoading(false)
       }
@@ -28,5 +32,5 @@ export function useUsage() {
     load()
   }, [])
 
-  return { summary, history, loading }
+  return { summary, history, loading, error }
 }
