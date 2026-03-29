@@ -224,6 +224,16 @@ async def run_team(
 
     # 状态追踪（闭包变量）
     rework_state = {"round": 1}
+
+    # Token 追踪
+    from backend.services.usage_tracker import UsageTracker
+
+    usage_tracker = UsageTracker(
+        task_id=task_id,
+        task_dir=task_dir,
+        mode="generation" if description else "refinement",
+    )
+
     agent_id_map: dict[str, str] = {}  # SDK UUID → agent key
     last_agent_desc = {"value": ""}  # 最近一次 Agent 调用的 description
     score_sent = {"count": 0}  # 已发送 score_update 的次数
@@ -343,6 +353,25 @@ async def run_team(
                 "status": "completed",
             },
         )
+
+        # 尝试从 input_data 提取 token usage
+        usage = input_data.get("usage", {})
+        if usage:
+            input_t = int(usage.get("input_tokens", 0))
+            output_t = int(usage.get("output_tokens", 0))
+            if input_t or output_t:
+                agent_usage = usage_tracker.add_tokens(agent_key, input_t, output_t)
+                await ws_manager.send(
+                    task_id,
+                    {
+                        "type": "token_update",
+                        "agent": agent_key,
+                        "input_tokens": agent_usage["input_tokens"],
+                        "output_tokens": agent_usage["output_tokens"],
+                        "total_tokens": agent_usage["input_tokens"] + agent_usage["output_tokens"],
+                    },
+                )
+
         return {}
 
     async def on_post_tool(input_data, tool_use_id, context):
@@ -446,6 +475,18 @@ async def run_team(
                             logger.warning("report generation failed task=%s", task_id, exc_info=True)
                             report_path = None
 
+                        # 持久化 usage
+                        usage_tracker.status = "completed"
+                        usage_tracker.rounds = rework_state["round"]
+                        if score_sent["count"] > 0:
+                            scores_file = Path(task_dir) / "scores.json"
+                            if scores_file.exists():
+                                import json as _json
+
+                                _scores = _json.loads(scores_file.read_text())
+                                usage_tracker.final_score = _scores.get("total")
+                        usage_tracker.save()
+
                         await ws_manager.send(
                             task_id,
                             {
@@ -460,6 +501,8 @@ async def run_team(
 
     except TimeoutError:
         logger.error("team timeout task=%s", task_id)
+        usage_tracker.status = "failed"
+        usage_tracker.save()
         await ws_manager.send(
             task_id,
             {
@@ -470,6 +513,8 @@ async def run_team(
         )
     except Exception as e:
         logger.error("team failed task=%s", task_id, exc_info=True)
+        usage_tracker.status = "failed"
+        usage_tracker.save()
         await ws_manager.send(
             task_id,
             {
