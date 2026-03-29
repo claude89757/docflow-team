@@ -38,12 +38,16 @@ class UsageTracker:
         """持久化到 usage.json"""
         total = self.get_total()
         completed_at = datetime.now(UTC).isoformat()
+        started = datetime.fromisoformat(self.started_at)
+        completed = datetime.fromisoformat(completed_at)
+        duration_seconds = round((completed - started).total_seconds(), 1)
 
         data = {
             "task_id": self.task_id,
             "mode": self.mode,
             "started_at": self.started_at,
             "completed_at": completed_at,
+            "duration_seconds": duration_seconds,
             "rounds": self.rounds,
             "final_score": self.final_score,
             "status": self.status,
