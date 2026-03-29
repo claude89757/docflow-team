@@ -46,7 +46,7 @@ export function AgentAvatar({ role, label, status }: Props) {
         </p>
         <div className="flex items-center gap-1.5">
           <span className={`
-            inline-block h-1.5 w-1.5 rounded-full
+            inline-block h-2 w-2 rounded-full
             ${isActive ? 'bg-indigo-500 animate-dot-pulse' : ''}
             ${isCompleted ? 'bg-emerald-500' : ''}
             ${isInactive ? 'bg-slate-300' : ''}

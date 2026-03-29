@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { AppShell } from './components/AppShell'
 import { UploadCard } from './components/landing/UploadCard'
 import { GenerateCard } from './components/landing/GenerateCard'
@@ -11,8 +11,8 @@ function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const { messages, connected } = useWebSocket(taskId)
 
-  const pipelineComplete = messages.some(m => m.type === 'pipeline_complete')
-  const pipelineFailed = messages.some(m => m.type === 'pipeline_status' && m.status === 'failed')
+  const pipelineComplete = useMemo(() => messages.some(m => m.type === 'pipeline_complete'), [messages])
+  const pipelineFailed = useMemo(() => messages.some(m => m.type === 'pipeline_status' && m.status === 'failed'), [messages])
 
   const handleTask = useCallback((id: string) => {
     setTaskId(id)
@@ -35,7 +35,7 @@ function App() {
             <p className="mx-auto max-w-lg text-base text-slate-500">
               由多位 AI 专家组成的自主团队，协作完成文档生成、内容编辑、排版设计和质量审核
             </p>
-            <div className="mt-4 flex items-center justify-center gap-6 text-sm text-slate-400">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-400 md:gap-6">
               <span className="flex items-center gap-1.5">
                 <Users className="h-4 w-4" /> 4 位 AI 专家
               </span>
@@ -65,7 +65,7 @@ function App() {
       {/* Processing: task active */}
       {taskId && (
         <>
-          <TeamWorkspace messages={messages} />
+          <TeamWorkspace messages={messages} connected={connected} />
           {(pipelineComplete || pipelineFailed) && (
             <ResultsPanel taskId={taskId} messages={messages} onReset={handleReset} />
           )}

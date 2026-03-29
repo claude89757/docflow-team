@@ -24,8 +24,8 @@ export function ScoreCard({ scores, round }: Props) {
           const color = val >= 8 ? 'bg-emerald-500' : val >= 5 ? 'bg-amber-500' : 'bg-rose-500'
           return (
             <div key={key} className="flex items-center gap-2">
-              <span className="w-20 shrink-0 text-xs text-slate-500">{label}</span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+              <span className="w-24 shrink-0 text-xs text-slate-500">{label}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
                 <div
                   className={`h-full rounded-full ${color} animate-bar-fill`}
                   style={{ width: `${val * 10}%` }}

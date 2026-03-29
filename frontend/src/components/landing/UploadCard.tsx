@@ -1,7 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Upload, FileText, FileSpreadsheet, Presentation, FileType, Loader2, AlertCircle } from 'lucide-react'
-
-const API_URL = import.meta.env.VITE_API_URL || ''
+import { API_URL, MAX_FILE_SIZE, SUPPORTED_EXTENSIONS } from '../../lib/api'
 
 const FORMAT_ICONS: Record<string, React.ReactNode> = {
   '.docx': <FileText className="h-4 w-4" />,
@@ -19,7 +18,31 @@ export function UploadCard({ onTask }: Props) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
+  // Auto-dismiss errors after 5s
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(''), 5000)
+    return () => clearTimeout(t)
+  }, [error])
+
+  const validateFile = (file: File): string | null => {
+    const ext = '.' + (file.name.split('.').pop()?.toLowerCase() || '')
+    if (!SUPPORTED_EXTENSIONS.includes(ext as typeof SUPPORTED_EXTENSIONS[number])) {
+      return `不支持的格式：${ext}，仅支持 ${SUPPORTED_EXTENSIONS.join('/')}`
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      return `文件过大（${(file.size / 1024 / 1024).toFixed(1)}MB），最大 ${MAX_FILE_SIZE / 1024 / 1024}MB`
+    }
+    return null
+  }
+
   const handleUpload = useCallback(async (file: File) => {
+    const validationError = validateFile(file)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
     setUploading(true)
     setError('')
     try {
@@ -55,10 +78,11 @@ export function UploadCard({ onTask }: Props) {
   const openFilePicker = () => {
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.docx,.pptx,.xlsx,.pdf'
+    input.accept = SUPPORTED_EXTENSIONS.join(',')
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (file) handleUpload(file)
+      input.remove()
     }
     input.click()
   }
@@ -68,10 +92,14 @@ export function UploadCard({ onTask }: Props) {
       onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
       onDragLeave={() => setDragging(false)}
       onDrop={onDrop}
-      onClick={openFilePicker}
+      onClick={!uploading ? openFilePicker : undefined}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !uploading) { e.preventDefault(); openFilePicker() } }}
       className={`
-        flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10
-        transition-all duration-200
+        flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10
+        transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2
+        ${uploading ? 'cursor-wait' : 'cursor-pointer'}
         ${dragging
           ? 'border-indigo-500 bg-indigo-50'
           : 'border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50'
@@ -79,7 +107,10 @@ export function UploadCard({ onTask }: Props) {
       `}
     >
       {uploading ? (
-        <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-10 w-10 animate-spin text-indigo-600" />
+          <p className="text-sm font-medium text-slate-500">上传中...</p>
+        </div>
       ) : (
         <>
           <Upload className="mb-4 h-10 w-10 text-slate-400" />
@@ -87,7 +118,7 @@ export function UploadCard({ onTask }: Props) {
           <p className="mb-4 text-sm text-slate-400">或点击选择文件</p>
           <div className="flex gap-2">
             {Object.entries(FORMAT_ICONS).map(([ext, icon]) => (
-              <span key={ext} className="flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
+              <span key={ext} className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
                 {icon} {ext}
               </span>
             ))}
@@ -96,7 +127,7 @@ export function UploadCard({ onTask }: Props) {
         </>
       )}
       {error && (
-        <div className="mt-3 flex items-center gap-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-600">
+        <div className="mt-3 flex items-center gap-2 rounded-lg border-l-4 border-rose-400 bg-rose-50 px-4 py-3 text-sm text-rose-600">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>

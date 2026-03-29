@@ -1,4 +1,5 @@
-import { FileText, ExternalLink, Wifi, WifiOff, ArrowLeft } from 'lucide-react'
+import { useState } from 'react'
+import { FileText, ExternalLink, Wifi, WifiOff, ArrowLeft, Copy, Check } from 'lucide-react'
 
 interface Props {
   taskId: string | null
@@ -8,6 +9,16 @@ interface Props {
 }
 
 export function AppShell({ taskId, connected, onReset, children }: Props) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopyTaskId = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!taskId) return
+    navigator.clipboard.writeText(taskId)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Nav */}
@@ -25,13 +36,24 @@ export function AppShell({ taskId, connected, onReset, children }: Props) {
             ) : (
               <FileText className="h-6 w-6 text-indigo-600" />
             )}
-            <span className="text-lg font-semibold text-slate-900">docflow-team</span>
+            <span className="text-xl font-bold text-slate-900">docflow-team</span>
           </div>
 
           <div className="flex items-center gap-4">
             {taskId && (
               <div className="flex items-center gap-2 text-sm">
-                <span className="font-mono text-slate-400">{taskId}</span>
+                <button
+                  onClick={handleCopyTaskId}
+                  className="flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                  title="点击复制 Task ID"
+                >
+                  {taskId.slice(0, 8)}
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-emerald-500" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </button>
                 {connected ? (
                   <Wifi className="h-4 w-4 text-emerald-500" />
                 ) : (
@@ -43,7 +65,8 @@ export function AppShell({ taskId, connected, onReset, children }: Props) {
               href="https://github.com/claude89757/docflow-team"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 transition-colors hover:text-slate-600"
+              title="GitHub"
+              className="rounded-lg p-1 text-slate-400 transition-colors hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
               <ExternalLink className="h-5 w-5" />
             </a>

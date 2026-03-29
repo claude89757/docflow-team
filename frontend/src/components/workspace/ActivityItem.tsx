@@ -41,7 +41,7 @@ export function ActivityItem({ entry, round }: Props) {
             <span className="text-sm font-medium text-indigo-700">Team Lead</span>
             <span className="text-xs text-indigo-400">{timeStr(timestamp)}</span>
           </div>
-          <p className="mt-0.5 text-sm text-indigo-600">{content}</p>
+          <p className="mt-0.5 break-words text-sm text-indigo-600">{content}</p>
         </div>
       </div>
     )
@@ -58,9 +58,9 @@ export function ActivityItem({ entry, round }: Props) {
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className="text-sm font-medium text-slate-700">{label}</span>
-            <span className="text-xs text-slate-300">{timeStr(timestamp)}</span>
+            <span className="text-xs text-slate-400">{timeStr(timestamp)}</span>
           </div>
-          <p className="mt-0.5 text-sm text-slate-500">{content}</p>
+          <p className="mt-0.5 break-words text-sm text-slate-500">{content}</p>
         </div>
       </div>
     )
@@ -80,9 +80,9 @@ export function ActivityItem({ entry, round }: Props) {
             <span className="text-sm font-medium text-slate-700">{fromLabel}</span>
             <span className="text-xs text-slate-400">→</span>
             <span className="text-sm font-medium text-slate-700">{toLabel}</span>
-            <span className="text-xs text-slate-300">{timeStr(timestamp)}</span>
+            <span className="text-xs text-slate-400">{timeStr(timestamp)}</span>
           </div>
-          <p className="mt-0.5 text-sm text-slate-500">{content}</p>
+          <p className="mt-0.5 break-words text-sm text-slate-500">{content}</p>
         </div>
       </div>
     )
@@ -94,7 +94,7 @@ export function ActivityItem({ entry, round }: Props) {
       <div className="animate-slide-up flex items-center gap-2 px-3 py-1.5">
         <Wrench className="h-3 w-3 text-slate-300" />
         <span className="text-xs text-slate-400">{content}</span>
-        <span className="text-xs text-slate-300">{timeStr(timestamp)}</span>
+        <span className="text-xs text-slate-400">{timeStr(timestamp)}</span>
       </div>
     )
   }
@@ -120,7 +120,7 @@ export function ActivityItem({ entry, round }: Props) {
             <span className="text-sm font-medium text-amber-700">返工要求</span>
             <span className="text-xs text-amber-400">{timeStr(timestamp)}</span>
           </div>
-          <p className="mt-0.5 text-sm text-amber-600">{content}</p>
+          <p className="mt-0.5 break-words text-sm text-amber-600">{content}</p>
         </div>
       </div>
     )
