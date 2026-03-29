@@ -73,3 +73,35 @@ export const SCORE_LABELS: Record<string, string> = {
   logical_coherence: '逻辑连贯性',
   domain_adaptation: '领域适配度',
 }
+
+// === Token Tracking Types ===
+
+export interface AgentTokenUsage {
+  input_tokens: number
+  output_tokens: number
+}
+
+export interface TokenState {
+  agents: Record<string, AgentTokenUsage>
+  total: AgentTokenUsage
+}
+
+export interface TaskUsageRecord {
+  task_id: string
+  mode: string
+  started_at: string
+  completed_at: string
+  duration_seconds: number
+  rounds: number
+  final_score: number | null
+  status: string
+  agents: Record<string, AgentTokenUsage>
+  total: AgentTokenUsage
+}
+
+export interface UsageSummary {
+  total_tasks: number
+  total_tokens: number
+  success_rate: number
+  avg_duration_seconds: number
+}
