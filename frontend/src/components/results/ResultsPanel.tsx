@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { CheckCircle2, Download, FileText, FileBarChart2, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WSMessage, ScoreResult } from '../../types'
+import { SCORE_LABELS } from '../../types'
 import { API_URL } from '../../lib/api'
 
 interface Props {
@@ -18,17 +19,18 @@ export function ResultsPanel({ taskId, messages, onReset }: Props) {
 
   if (failedMsg) {
     return (
-      <div className="animate-fade-in mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-6">
+      <div className="animate-fade-in glass-lg mt-6 p-6" style={{ borderColor: 'rgba(255,59,48,0.15)' }}>
         <div className="flex items-center gap-3">
-          <AlertTriangle className="h-6 w-6 text-rose-500" />
-          <h3 className="text-lg font-semibold text-rose-700">处理失败</h3>
+          <AlertTriangle className="h-6 w-6" style={{ color: 'var(--color-error)' }} />
+          <h3 className="text-lg font-semibold" style={{ color: 'var(--color-error)' }}>处理失败</h3>
         </div>
-        <p className="mt-3 text-sm text-rose-600">
+        <p className="mt-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
           {String(failedMsg.error || '未知错误')}
         </p>
         <button
           onClick={onReset}
-          className="mt-4 flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="mt-4 flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white"
+          style={{ backgroundColor: 'var(--color-primary)', borderRadius: 'var(--btn-radius)' }}
         >
           <RotateCcw className="h-4 w-4" />
           重试
@@ -43,26 +45,54 @@ export function ResultsPanel({ taskId, messages, onReset }: Props) {
   const truncated = result.length > 500
 
   return (
-    <div className="animate-fade-in mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6">
+    <div className="animate-fade-in glass-lg mt-6 p-6" style={{ borderColor: 'rgba(52,199,89,0.15)' }}>
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <CheckCircle2 className="h-6 w-6 text-emerald-500 animate-check-pop" />
-        <h3 className="text-lg font-semibold text-emerald-700">处理完成</h3>
+        <CheckCircle2 className="h-6 w-6 animate-check-pop" style={{ color: 'var(--color-success)' }} />
+        <h3 className="text-lg font-semibold" style={{ color: 'var(--color-success)' }}>处理完成</h3>
         {scores && (
-          <span className="ml-auto rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-600">
-            {scores.total}/10
+          <span
+            className="ml-auto text-2xl font-bold"
+            style={{ color: 'var(--color-text-primary)' }}
+          >
+            {scores.total}<span className="text-sm font-normal" style={{ color: 'var(--color-text-tertiary)' }}>/10</span>
           </span>
         )}
       </div>
 
+      {/* Score dimensions */}
+      {scores && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {Object.entries(SCORE_LABELS).map(([key, label]) => {
+            const val = scores[key as keyof ScoreResult] as number
+            const color = val >= 8 ? 'var(--color-success)' : 'var(--color-warning)'
+            return (
+              <span
+                key={key}
+                className="rounded-md px-2.5 py-1 text-xs font-semibold"
+                style={{ backgroundColor: `${color}10`, color }}
+              >
+                {label} {val}
+              </span>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Result text */}
       {result && (
-        <div className="mt-3">
-          <p className={`${expanded ? '' : 'max-h-40'} overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-600`}>
+        <div className="mt-4">
+          <p
+            className={`${expanded ? '' : 'max-h-40'} overflow-y-auto whitespace-pre-wrap break-words text-sm leading-relaxed`}
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             {expanded || !truncated ? result : result.slice(0, 500) + '...'}
           </p>
           {truncated && (
             <button
               onClick={() => setExpanded(!expanded)}
-              className="mt-2 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700"
+              className="mt-2 flex items-center gap-1 text-xs font-medium"
+              style={{ color: 'var(--color-primary)' }}
             >
               {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               {expanded ? '收起' : `展开（${result.length} 字符）`}
@@ -71,31 +101,40 @@ export function ResultsPanel({ taskId, messages, onReset }: Props) {
         </div>
       )}
 
+      {/* Download buttons */}
       <div className="mt-5 flex flex-wrap gap-3">
         <a
           href={`${API_URL}/api/download/${taskId}`}
-          className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+          className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white"
+          style={{ backgroundColor: 'var(--color-primary)', borderRadius: 'var(--btn-radius)' }}
         >
           <Download className="h-4 w-4" />
           下载精修版
         </a>
         <a
           href={`${API_URL}/api/download/${taskId}/report`}
-          className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+          className="glass flex items-center gap-2 px-5 py-2.5 text-sm font-medium"
+          style={{ color: 'var(--color-primary)', borderRadius: 'var(--btn-radius)' }}
         >
           <FileBarChart2 className="h-4 w-4" />
-          下载处理报告
+          处理报告
         </a>
         <a
           href={`${API_URL}/api/download/${taskId}/original`}
-          className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-5 py-2.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+          className="glass flex items-center gap-2 px-5 py-2.5 text-sm font-medium"
+          style={{ color: 'var(--color-text-secondary)', borderRadius: 'var(--btn-radius)' }}
         >
           <FileText className="h-4 w-4" />
-          下载原始版
+          原始版
         </a>
+      </div>
+
+      {/* Reset */}
+      <div className="mt-4 text-center">
         <button
           onClick={onReset}
-          className="flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+          className="inline-flex items-center gap-2 text-sm font-medium transition-colors hover:opacity-70"
+          style={{ color: 'var(--color-text-tertiary)' }}
         >
           <RotateCcw className="h-4 w-4" />
           处理新文档
