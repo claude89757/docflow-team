@@ -6,6 +6,7 @@ import { UnifiedInput } from './components/landing/UnifiedInput'
 import { TeamWorkspace } from './components/workspace/TeamWorkspace'
 import { ResultsPanel } from './components/results/ResultsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
+import { UsageDashboard } from './components/usage/UsageDashboard'
 
 type Page = 'home' | 'usage'
 
@@ -49,12 +50,8 @@ function App() {
         </div>
       )}
 
-      {/* Usage Dashboard (lazy load later) */}
-      {!taskId && page === 'usage' && (
-        <div className="animate-fade-in py-10 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
-          用量仪表盘（将在 Task 11 实现）
-        </div>
-      )}
+      {/* Usage Dashboard */}
+      {!taskId && page === 'usage' && <UsageDashboard />}
 
       {/* Processing */}
       {taskId && (
