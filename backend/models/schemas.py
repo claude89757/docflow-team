@@ -31,7 +31,7 @@ class AgentStatus(StrEnum):
 
 
 class GenerateRequest(BaseModel):
-    description: str = Field(..., min_length=1, max_length=5000)
+    description: str = Field(..., min_length=1, max_length=2000)
     format: str = Field(default="docx", pattern="^(docx|pptx|xlsx|pdf)$")
     style_dna_id: str | None = None
 
