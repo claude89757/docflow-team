@@ -174,6 +174,12 @@ async def replace_content_tool(args):
         if not file_path or not Path(file_path).exists():
             return _error_result(f"文件不存在: {file_path}")
         replacements = json.loads(args.get("replacements", "{}"))
+        # Agent 可能传 list 格式: [{"index": 0, "text": "..."}, ...] → 转为 dict
+        if isinstance(replacements, list):
+            replacements = {
+                str(item.get("index", i)): item.get("text", item.get("new_text", ""))
+                for i, item in enumerate(replacements)
+            }
         processor = get_processor(file_path)
         out = processor.replace_text(file_path, replacements, args.get("output_path", ""))
         return {"content": [{"type": "text", "text": f"内容替换完成，输出: {out}"}]}

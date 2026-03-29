@@ -19,7 +19,7 @@ download-fonts:
 
 # === Development ===
 dev-backend:
-	. .venv/bin/activate && set -a && . .env && set +a && uvicorn backend.main:app --reload --port 8000
+	. .venv/bin/activate && set -a && . .env && set +a && uvicorn backend.main:app --reload --reload-dir backend --port 8000
 
 dev-frontend:
 	cd frontend && npm run dev
