@@ -1,8 +1,12 @@
 @import "tailwindcss";
+@import "./theme.css";
 
 /* === Base === */
 body {
-  @apply m-0 bg-slate-50 text-slate-900 antialiased;
+  @apply m-0 antialiased;
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
 }
 
 * {
@@ -11,8 +15,8 @@ body {
 
 /* === Animations === */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); }
-  50% { box-shadow: 0 0 12px 4px rgba(79, 70, 229, 0.2); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.3); }
+  50% { box-shadow: 0 0 12px 4px rgba(0, 122, 255, 0.15); }
 }
 
 @keyframes dot-pulse {
@@ -50,3 +54,4 @@ body {
 .animate-fade-in { animation: fade-in 0.4s ease-out; }
 .animate-bar-fill { animation: bar-fill 0.8s ease-out; }
 .animate-check-pop { animation: check-pop 0.4s ease-out; }
+.animate-dash-flow { animation: dash-flow 1s linear infinite; }

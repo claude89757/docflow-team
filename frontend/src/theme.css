@@ -1,0 +1,99 @@
+/* frontend/src/theme.css */
+
+/* === macOS Sonoma Design Tokens === */
+:root {
+  /* Colors - Primary */
+  --color-primary: #007aff;
+  --color-primary-hover: #0066d6;
+
+  /* Colors - Agent */
+  --color-agent-generator: #5e5ce6;
+  --color-agent-editor: #007aff;
+  --color-agent-designer: #ff9f0a;
+  --color-agent-reviewer: #30d158;
+
+  /* Colors - Semantic */
+  --color-success: #34c759;
+  --color-warning: #ff9f0a;
+  --color-error: #ff3b30;
+
+  /* Colors - Text */
+  --color-text-primary: rgba(0, 0, 0, 0.85);
+  --color-text-secondary: rgba(0, 0, 0, 0.5);
+  --color-text-tertiary: rgba(0, 0, 0, 0.35);
+
+  /* Colors - Surface */
+  --color-bg: #f5f5f7;
+  --color-glass: rgba(255, 255, 255, 0.65);
+  --color-glass-hover: rgba(255, 255, 255, 0.8);
+  --color-glass-border: rgba(0, 0, 0, 0.04);
+
+  /* Glass */
+  --glass-blur: 20px;
+  --glass-border: 0.5px solid var(--color-glass-border);
+  --glass-radius: 12px;
+  --glass-radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* Button */
+  --btn-radius: 980px;
+}
+
+/* === Glass Panel === */
+.glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+}
+
+.glass-lg {
+  background: var(--color-glass);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius-lg);
+}
+
+/* === New Animation: fade-blur-in === */
+@keyframes fade-blur-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+  }
+}
+
+.animate-fade-blur-in {
+  animation: fade-blur-in 0.4s ease-out;
+}
+
+/* === Color Blobs === */
+.bg-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(60px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-blob-purple {
+  background: rgba(94, 92, 230, 0.06);
+}
+
+.bg-blob-blue {
+  background: rgba(0, 122, 255, 0.05);
+}
+
+.bg-blob-green {
+  background: rgba(48, 209, 88, 0.04);
+}
