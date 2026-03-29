@@ -9,6 +9,8 @@ Hooks 捕获生命周期事件 → WebSocket 推送到前端。
 import asyncio
 import json
 import logging
+import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, HookMatcher
@@ -312,6 +314,8 @@ async def run_team(
             tool_result = input_data.get("tool_result", "")
             try:
                 scores = json.loads(tool_result) if isinstance(tool_result, str) else tool_result
+                # 持久化评分供报告生成使用
+                (Path(task_dir) / "scores.json").write_text(json.dumps(scores, ensure_ascii=False))
                 await ws_manager.send(
                     task_id,
                     {
@@ -385,6 +389,22 @@ async def run_team(
                                 )
 
                         output_exists = Path(output_path).exists() and Path(output_path).stat().st_size > 0
+
+                        # 生成处理报告 PDF（non-fatal）
+                        report_path = str(Path(task_dir) / "report.pdf")
+                        try:
+                            _generate_report(
+                                task_id=task_id,
+                                task_dir=task_dir,
+                                doc_format=doc_format,
+                                out_format=out_format,
+                                source_file=source_file,
+                                result_text=message.result,
+                            )
+                        except Exception:
+                            logger.warning("report generation failed task=%s", task_id, exc_info=True)
+                            report_path = None
+
                         await ws_manager.send(
                             task_id,
                             {
@@ -392,6 +412,7 @@ async def run_team(
                                 "status": "completed",
                                 "result": message.result,
                                 "output_file": output_path if output_exists else None,
+                                "report_file": report_path,
                             },
                         )
                         logger.info("team completed task=%s", task_id)
@@ -416,3 +437,60 @@ async def run_team(
                 "error": f"{type(e).__name__}: {str(e)}",
             },
         )
+
+
+def _generate_report(
+    task_id: str,
+    task_dir: str,
+    doc_format: str,
+    out_format: str,
+    source_file: str | None,
+    result_text: str,
+) -> None:
+    """生成 report.pdf 到 task 目录。"""
+    from backend.models.schemas import ReportData, ScoreResult
+    from backend.processors import get_processor
+    from backend.services.report.pdf_generator import generate_report_pdf
+
+    task_path = Path(task_dir)
+
+    # 加载持久化的评分
+    scores = None
+    scores_file = task_path / "scores.json"
+    if scores_file.exists():
+        raw = json.loads(scores_file.read_text())
+        scores = ScoreResult(**raw)
+
+    # 提取原文和输出文本
+    original_text = ""
+    if source_file and Path(source_file).exists():
+        processor = get_processor(source_file)
+        original_text = processor.extract_text(source_file)
+
+    output_text = ""
+    for f in task_path.iterdir():
+        if f.name.startswith("output"):
+            processor = get_processor(str(f))
+            output_text = processor.extract_text(str(f))
+            break
+
+    # 从 result 文本中解析轮次
+    rounds = 1
+    m = re.search(r"处理轮次:\s*(\d+)", result_text)
+    if m:
+        rounds = int(m.group(1))
+
+    data = ReportData(
+        task_id=task_id,
+        created_at=datetime.now(UTC).isoformat(),
+        input_format=doc_format,
+        output_format=out_format,
+        rounds=rounds,
+        scores=scores,
+        team_lead_summary=result_text,
+        original_text=original_text,
+        output_text=output_text,
+        is_generation_mode=source_file is None,
+    )
+
+    generate_report_pdf(data, str(task_path / "report.pdf"))

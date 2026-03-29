@@ -207,3 +207,6 @@ marimo/_lsp/
 __marimo__/
 .gstack/
 uploads/
+
+# CJK fonts (downloaded via make download-fonts)
+backend/services/report/fonts/*.ttf

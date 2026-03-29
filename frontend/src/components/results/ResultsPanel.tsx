@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CheckCircle2, Download, FileText, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
+import { CheckCircle2, Download, FileText, FileBarChart2, AlertTriangle, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react'
 import type { WSMessage, ScoreResult } from '../../types'
 import { API_URL } from '../../lib/api'
 
@@ -78,6 +78,13 @@ export function ResultsPanel({ taskId, messages, onReset }: Props) {
         >
           <Download className="h-4 w-4" />
           下载精修版
+        </a>
+        <a
+          href={`${API_URL}/api/download/${taskId}/report`}
+          className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-2.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2"
+        >
+          <FileBarChart2 className="h-4 w-4" />
+          下载处理报告
         </a>
         <a
           href={`${API_URL}/api/download/${taskId}/original`}

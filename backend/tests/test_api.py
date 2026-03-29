@@ -60,6 +60,11 @@ def test_download_not_found():
     assert res.status_code == 404
 
 
+def test_download_report_not_found():
+    res = client.get("/api/download/nonexistent/report")
+    assert res.status_code == 404
+
+
 def test_status_not_found():
     res = client.get("/api/status/nonexistent")
     assert res.status_code == 404

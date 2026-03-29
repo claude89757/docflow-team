@@ -6,6 +6,17 @@ install:
 	. .venv/bin/activate && pip install -r backend/requirements.txt
 	cd frontend && npm ci
 
+download-fonts:
+	@mkdir -p backend/services/report/fonts
+	@if [ ! -f backend/services/report/fonts/NotoSansSC-Regular.ttf ]; then \
+		echo "Downloading Noto Sans SC..."; \
+		curl -sL "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf" \
+			-o backend/services/report/fonts/NotoSansSC-Regular.ttf; \
+		echo "Done."; \
+	else \
+		echo "Font already exists."; \
+	fi
+
 # === Development ===
 dev-backend:
 	. .venv/bin/activate && set -a && . .env && set +a && uvicorn backend.main:app --reload --port 8000

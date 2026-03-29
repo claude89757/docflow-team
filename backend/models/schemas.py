@@ -66,6 +66,19 @@ class ScoreResult(BaseModel):
     passed: bool
 
 
+class ReportData(BaseModel):
+    task_id: str
+    created_at: str
+    input_format: str
+    output_format: str
+    rounds: int = 1
+    scores: ScoreResult | None = None
+    team_lead_summary: str = ""
+    original_text: str = ""
+    output_text: str = ""
+    is_generation_mode: bool = False
+
+
 class WSMessage(BaseModel):
     type: str
     task_id: str

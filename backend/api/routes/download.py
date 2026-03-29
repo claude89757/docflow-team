@@ -59,6 +59,22 @@ async def download_original(task_id: str):
     raise HTTPException(404, "原始文件不存在")
 
 
+@router.get("/download/{task_id}/report")
+async def download_report(task_id: str):
+    """下载处理报告 PDF"""
+    task_dir = _safe_task_dir(task_id)
+    report_path = task_dir / "report.pdf"
+
+    if not report_path.exists():
+        raise HTTPException(404, "处理报告尚未生成")
+
+    return FileResponse(
+        path=str(report_path),
+        filename=f"report_{task_id}.pdf",
+        media_type="application/pdf",
+    )
+
+
 @router.get("/status/{task_id}")
 async def task_status(task_id: str):
     """查询任务状态和文件列表"""
