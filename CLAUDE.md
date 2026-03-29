@@ -20,6 +20,44 @@ cp .env.example .env  # 需要 ANTHROPIC_API_KEY
 # 必须设置 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ```
 
+## Commit Convention
+
+使用 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+
+```
+<type>(<scope>): <简短描述>
+
+<可选正文>
+```
+
+**Type:**
+- `feat` — 新功能
+- `fix` — Bug 修复
+- `refactor` — 重构（不改行为）
+- `test` — 测试
+- `docs` — 文档
+- `ci` — CI/CD、pre-commit
+- `chore` — 杂项（依赖更新等）
+- `perf` — 性能优化
+- `style` — 代码风格（不改逻辑）
+
+**Scope（可选）:** `frontend`, `backend`, `pipeline`, `infra`
+
+**示例：**
+```
+feat(frontend): 新增拖拽上传 + 格式验证
+fix(backend): 修复 PDF 转 docx 时标题层级丢失
+test: E2E 多格式集成测试
+ci: 添加 pre-commit hooks + GitHub Actions
+docs: 更新 CLAUDE.md 项目上下文
+```
+
+**规则：**
+- 描述用中文，type/scope 用英文
+- 首行不超过 72 字符
+- 不以句号结尾
+- 用祈使语气（"添加" 不是 "添加了"）
+
 ## Gotchas
 
 - PDF 输入会自动转换为 .docx 输出（PDF 不可原地修改）
