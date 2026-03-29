@@ -49,33 +49,36 @@ class XlsxProcessor:
     def extract_text(self, file_path: str) -> str:
         """提取所有文本 cell 内容"""
         wb = load_workbook(file_path, data_only=True)
-        texts = []
-        for ws in wb.worksheets:
-            for row in ws.iter_rows():
-                for cell in row:
-                    if cell.data_type == "s" and cell.value and cell.value.strip():
-                        texts.append(cell.value)
-        wb.close()
-        return "\n".join(texts)
+        try:
+            texts = []
+            for ws in wb.worksheets:
+                for row in ws.iter_rows():
+                    for cell in row:
+                        if cell.data_type == "s" and cell.value and cell.value.strip():
+                            texts.append(cell.value)
+            return "\n".join(texts)
+        finally:
+            wb.close()
 
     def get_stats(self, file_path: str) -> dict:
         """文档统计"""
         wb = load_workbook(file_path, data_only=False)
-        text_cell_count = 0
-        total_chars = 0
-        for ws in wb.worksheets:
-            for row in ws.iter_rows():
-                for cell in row:
-                    if cell.data_type == "s" and cell.value:
-                        text_cell_count += 1
-                        total_chars += len(cell.value)
-        result = {
-            "sheet_count": len(wb.sheetnames),
-            "text_cell_count": text_cell_count,
-            "total_chars": total_chars,
-        }
-        wb.close()
-        return result
+        try:
+            text_cell_count = 0
+            total_chars = 0
+            for ws in wb.worksheets:
+                for row in ws.iter_rows():
+                    for cell in row:
+                        if cell.data_type == "s" and cell.value:
+                            text_cell_count += 1
+                            total_chars += len(cell.value)
+            return {
+                "sheet_count": len(wb.sheetnames),
+                "text_cell_count": text_cell_count,
+                "total_chars": total_chars,
+            }
+        finally:
+            wb.close()
 
     def replace_text(self, file_path: str, replacements: dict, output_path: str) -> str:
         """替换文本 cell 内容，保留格式

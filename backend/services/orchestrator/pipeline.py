@@ -4,8 +4,9 @@
 Hooks 捕获生命周期事件 → WebSocket 推送到前端。
 """
 
+import asyncio
 import json
-import traceback
+import logging
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient, HookMatcher
@@ -13,6 +14,8 @@ from claude_agent_sdk.types import StreamEvent
 
 from backend.services.orchestrator.agents import AGENTS, docflow_tools
 from backend.services.ws_manager import WSManager
+
+logger = logging.getLogger("docflow.pipeline")
 
 
 async def run_pipeline(
@@ -235,37 +238,53 @@ async def run_pipeline(
         max_turns=100,
     )
 
+    logger.info("pipeline started task=%s format=%s", task_id, doc_format)
+
     try:
-        async with ClaudeSDKClient(options=options) as client:
-            await client.query(lead_prompt)
-            async for message in client.receive_response():
-                # 转发流式事件
-                if isinstance(message, StreamEvent):
-                    event = message.event if hasattr(message, "event") else {}
-                    event_type = event.get("type", "") if isinstance(event, dict) else ""
-                    # 只转发关键事件，不转发每个 token
-                    if event_type in ("content_block_start", "content_block_stop"):
+        async with asyncio.timeout(600):  # 10 分钟超时
+            async with ClaudeSDKClient(options=options) as client:
+                await client.query(lead_prompt)
+                async for message in client.receive_response():
+                    # 转发流式事件
+                    if isinstance(message, StreamEvent):
+                        event = message.event if hasattr(message, "event") else {}
+                        event_type = event.get("type", "") if isinstance(event, dict) else ""
+                        # 只转发关键事件，不转发每个 token
+                        if event_type in ("content_block_start", "content_block_stop"):
+                            await ws_manager.send(
+                                task_id,
+                                {
+                                    "type": "stream_event",
+                                    "event_type": event_type,
+                                },
+                            )
+
+                    # 最终结果
+                    if hasattr(message, "result") and message.result:
+                        output_exists = Path(output_path).exists() and Path(output_path).stat().st_size > 0
                         await ws_manager.send(
                             task_id,
                             {
-                                "type": "stream_event",
-                                "event_type": event_type,
+                                "type": "pipeline_complete",
+                                "status": "completed",
+                                "result": message.result,
+                                "output_file": output_path if output_exists else None,
                             },
                         )
+                        logger.info("pipeline completed task=%s", task_id)
 
-                # 最终结果
-                if hasattr(message, "result") and message.result:
-                    await ws_manager.send(
-                        task_id,
-                        {
-                            "type": "pipeline_complete",
-                            "status": "completed",
-                            "result": message.result,
-                            "output_file": output_path if Path(output_path).exists() else None,
-                        },
-                    )
-
+    except TimeoutError:
+        logger.error("pipeline timeout task=%s", task_id)
+        await ws_manager.send(
+            task_id,
+            {
+                "type": "pipeline_status",
+                "status": "failed",
+                "error": "管线超时（10 分钟），请检查文档复杂度或稍后重试",
+            },
+        )
     except Exception as e:
+        logger.error("pipeline failed task=%s", task_id, exc_info=True)
         await ws_manager.send(
             task_id,
             {
@@ -274,4 +293,3 @@ async def run_pipeline(
                 "error": f"{type(e).__name__}: {str(e)}",
             },
         )
-        traceback.print_exc()

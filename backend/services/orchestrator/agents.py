@@ -1,11 +1,19 @@
 """Agent 角色定义 + 自定义工具"""
 
 import json
+import logging
 from pathlib import Path
 
 from claude_agent_sdk import AgentDefinition, create_sdk_mcp_server, tool
 
 from backend.processors import get_processor
+
+logger = logging.getLogger("docflow.agents")
+
+
+def _error_result(msg: str) -> dict:
+    return {"content": [{"type": "text", "text": f"Error: {msg}"}]}
+
 
 # === Agent 角色 ===
 
@@ -121,9 +129,16 @@ AGENTS = {
 
 @tool("parse_document", "解析文档结构（支持 docx/pptx/xlsx/pdf）", {"file_path": str})
 async def parse_document_tool(args):
-    processor = get_processor(args["file_path"])
-    result = processor.parse(args["file_path"])
-    return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}
+    try:
+        file_path = args.get("file_path", "")
+        if not file_path or not Path(file_path).exists():
+            return _error_result(f"文件不存在: {file_path}")
+        processor = get_processor(file_path)
+        result = processor.parse(file_path)
+        return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}
+    except Exception as e:
+        logger.error("parse_document failed: %s", e, exc_info=True)
+        return _error_result(f"{type(e).__name__}: {e}")
 
 
 @tool(
@@ -132,10 +147,19 @@ async def parse_document_tool(args):
     {"file_path": str, "output_path": str, "replacements": str},
 )
 async def replace_content_tool(args):
-    replacements = json.loads(args["replacements"])
-    processor = get_processor(args["file_path"])
-    out = processor.replace_text(args["file_path"], replacements, args["output_path"])
-    return {"content": [{"type": "text", "text": f"内容替换完成，输出: {out}"}]}
+    try:
+        file_path = args.get("file_path", "")
+        if not file_path or not Path(file_path).exists():
+            return _error_result(f"文件不存在: {file_path}")
+        replacements = json.loads(args.get("replacements", "{}"))
+        processor = get_processor(file_path)
+        out = processor.replace_text(file_path, replacements, args.get("output_path", ""))
+        return {"content": [{"type": "text", "text": f"内容替换完成，输出: {out}"}]}
+    except json.JSONDecodeError as e:
+        return _error_result(f"replacements JSON 格式错误: {e}")
+    except Exception as e:
+        logger.error("replace_content failed: %s", e, exc_info=True)
+        return _error_result(f"{type(e).__name__}: {e}")
 
 
 @tool(
@@ -144,25 +168,43 @@ async def replace_content_tool(args):
     {"file_path": str, "output_path": str, "changes": str},
 )
 async def apply_format_tool(args):
-    changes = json.loads(args["changes"])
-    processor = get_processor(args["file_path"])
-    out = processor.apply_format_changes(args["file_path"], changes, args["output_path"])
-    return {"content": [{"type": "text", "text": f"格式修改已应用，输出: {out}"}]}
+    try:
+        file_path = args.get("file_path", "")
+        if not file_path or not Path(file_path).exists():
+            return _error_result(f"文件不存在: {file_path}")
+        changes = json.loads(args.get("changes", "[]"))
+        processor = get_processor(file_path)
+        out = processor.apply_format_changes(file_path, changes, args.get("output_path", ""))
+        return {"content": [{"type": "text", "text": f"格式修改已应用，输出: {out}"}]}
+    except json.JSONDecodeError as e:
+        return _error_result(f"changes JSON 格式错误: {e}")
+    except Exception as e:
+        logger.error("apply_format failed: %s", e, exc_info=True)
+        return _error_result(f"{type(e).__name__}: {e}")
 
 
 @tool("write_document", "将文本内容写入文档文件（支持 docx/pptx/xlsx）", {"output_path": str, "content": str})
 async def write_document_tool(args):
-    output_path = args["output_path"]
-    ext = Path(output_path).suffix.lower()
+    try:
+        output_path = args.get("output_path", "")
+        content = args.get("content", "")
+        if not output_path:
+            return _error_result("output_path is required")
+        if not content:
+            return _error_result("content is required")
+        ext = Path(output_path).suffix.lower()
 
-    if ext == ".pptx":
-        _write_pptx(output_path, args["content"])
-    elif ext == ".xlsx":
-        _write_xlsx(output_path, args["content"])
-    else:
-        _write_docx(output_path, args["content"])
+        if ext == ".pptx":
+            _write_pptx(output_path, content)
+        elif ext == ".xlsx":
+            _write_xlsx(output_path, content)
+        else:
+            _write_docx(output_path, content)
 
-    return {"content": [{"type": "text", "text": f"文档已创建: {output_path}"}]}
+        return {"content": [{"type": "text", "text": f"文档已创建: {output_path}"}]}
+    except Exception as e:
+        logger.error("write_document failed: %s", e, exc_info=True)
+        return _error_result(f"{type(e).__name__}: {e}")
 
 
 def _write_docx(output_path: str, content: str):
@@ -246,18 +288,24 @@ def _write_xlsx(output_path: str, content: str):
 
 @tool("submit_score", "提交质量评分结果", {"scores": str})
 async def submit_score_tool(args):
-    scores = json.loads(args["scores"])
-    weights = {
-        "vocabulary_naturalness": 0.3,
-        "sentence_diversity": 0.2,
-        "format_humanity": 0.25,
-        "logical_coherence": 0.15,
-        "domain_adaptation": 0.1,
-    }
-    total = sum(scores.get(k, 0) * w for k, w in weights.items())
-    passed = total >= 8.0
-    result = {**scores, "total": round(total, 1), "passed": passed}
-    return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}
+    try:
+        scores = json.loads(args.get("scores", "{}"))
+        weights = {
+            "vocabulary_naturalness": 0.3,
+            "sentence_diversity": 0.2,
+            "format_humanity": 0.25,
+            "logical_coherence": 0.15,
+            "domain_adaptation": 0.1,
+        }
+        total = sum(scores.get(k, 0) * w for k, w in weights.items())
+        passed = total >= 8.0
+        result = {**scores, "total": round(total, 1), "passed": passed}
+        return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}
+    except json.JSONDecodeError as e:
+        return _error_result(f"scores JSON 格式错误: {e}")
+    except Exception as e:
+        logger.error("submit_score failed: %s", e, exc_info=True)
+        return _error_result(f"{type(e).__name__}: {e}")
 
 
 # MCP Server

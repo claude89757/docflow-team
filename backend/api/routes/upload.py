@@ -17,8 +17,9 @@ ALLOWED_EXTENSIONS = {".docx", ".pptx", ".xlsx", ".pdf"}
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_document(file: UploadFile = File(...)):
-    # 验证扩展名
-    ext = Path(file.filename).suffix.lower()
+    # 消毒文件名，防止路径遍历
+    safe_name = Path(file.filename or "unnamed").name
+    ext = Path(safe_name).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(400, f"不支持的文件格式: {ext}。支持: {', '.join(ALLOWED_EXTENSIONS)}")
 
@@ -32,11 +33,17 @@ async def upload_document(file: UploadFile = File(...)):
     # 生成 task_id 并保存
     task_id = str(uuid.uuid4())[:8]
     task_dir = UPLOAD_DIR / task_id
-    task_dir.mkdir(parents=True)
+    try:
+        task_dir.mkdir(parents=True)
+    except OSError as e:
+        raise HTTPException(507, f"无法创建任务目录: {e}") from None
 
     file_path = task_dir / f"original{ext}"
-    async with aiofiles.open(file_path, "wb") as f:
-        await f.write(content)
+    try:
+        async with aiofiles.open(file_path, "wb") as f:
+            await f.write(content)
+    except OSError as e:
+        raise HTTPException(507, f"文件写入失败: {e}") from None
 
     return UploadResponse(
         task_id=task_id,

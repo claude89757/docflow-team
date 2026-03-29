@@ -47,31 +47,35 @@ class PdfProcessor:
     def extract_text(self, file_path: str) -> str:
         """提取纯文本"""
         doc = fitz.open(file_path)
-        texts = []
-        for page in doc:
-            text = page.get_text().strip()
-            if text:
-                texts.append(text)
-        doc.close()
-        return "\n\n".join(texts)
+        try:
+            texts = []
+            for page in doc:
+                text = page.get_text().strip()
+                if text:
+                    texts.append(text)
+            return "\n\n".join(texts)
+        finally:
+            doc.close()
 
     def get_stats(self, file_path: str) -> dict:
         """文档统计"""
         doc = fitz.open(file_path)
-        page_count = len(doc)
-        block_count = 0
-        total_chars = 0
-        for page in doc:
-            for block in page.get_text("blocks"):
-                if block[6] == 0:  # text block
-                    block_count += 1
-                    total_chars += len(block[4])
-        doc.close()
-        return {
-            "page_count": page_count,
-            "block_count": block_count,
-            "total_chars": total_chars,
-        }
+        try:
+            page_count = len(doc)
+            block_count = 0
+            total_chars = 0
+            for page in doc:
+                for block in page.get_text("blocks"):
+                    if block[6] == 0:  # text block
+                        block_count += 1
+                        total_chars += len(block[4])
+            return {
+                "page_count": page_count,
+                "block_count": block_count,
+                "total_chars": total_chars,
+            }
+        finally:
+            doc.close()
 
     def to_docx(self, file_path: str, output_path: str) -> str:
         """将 PDF 文本内容转换为 docx

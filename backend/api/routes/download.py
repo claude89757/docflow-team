@@ -15,14 +15,21 @@ MIME_TYPES = {
 }
 
 
+def _safe_task_dir(task_id: str) -> Path:
+    """验证 task_id 指向的目录在 UPLOAD_DIR 内，防止路径遍历"""
+    task_dir = (UPLOAD_DIR / task_id).resolve()
+    if not str(task_dir).startswith(str(UPLOAD_DIR.resolve())):
+        raise HTTPException(403, "无效的任务 ID")
+    if not task_dir.exists():
+        raise HTTPException(404, f"任务 {task_id} 不存在")
+    return task_dir
+
+
 @router.get("/download/{task_id}")
 async def download_output(task_id: str):
     """下载精修后的文档"""
-    task_dir = UPLOAD_DIR / task_id
-    if not task_dir.exists():
-        raise HTTPException(404, f"任务 {task_id} 不存在")
+    task_dir = _safe_task_dir(task_id)
 
-    # 找 output 文件
     for f in task_dir.iterdir():
         if f.name.startswith("output"):
             ext = f.suffix
@@ -38,9 +45,7 @@ async def download_output(task_id: str):
 @router.get("/download/{task_id}/original")
 async def download_original(task_id: str):
     """下载原始上传文件"""
-    task_dir = UPLOAD_DIR / task_id
-    if not task_dir.exists():
-        raise HTTPException(404, f"任务 {task_id} 不存在")
+    task_dir = _safe_task_dir(task_id)
 
     for f in task_dir.iterdir():
         if f.name.startswith("original"):
@@ -57,9 +62,7 @@ async def download_original(task_id: str):
 @router.get("/status/{task_id}")
 async def task_status(task_id: str):
     """查询任务状态和文件列表"""
-    task_dir = UPLOAD_DIR / task_id
-    if not task_dir.exists():
-        raise HTTPException(404, f"任务 {task_id} 不存在")
+    task_dir = _safe_task_dir(task_id)
 
     files = {}
     for f in task_dir.iterdir():
