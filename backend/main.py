@@ -20,9 +20,11 @@ app.add_middleware(
 from backend.api.routes.upload import router as upload_router
 from backend.api.routes.generate import router as generate_router
 from backend.api.routes.ws import router as ws_router
+from backend.api.routes.download import router as download_router
 
 app.include_router(upload_router, prefix="/api")
 app.include_router(generate_router, prefix="/api")
+app.include_router(download_router, prefix="/api")
 app.include_router(ws_router)
 
 # 确保上传目录存在

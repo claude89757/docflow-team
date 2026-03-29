@@ -3,12 +3,15 @@ import { UploadZone } from './components/UploadZone'
 import { AgentPanel } from './components/AgentPanel'
 import { useWebSocket } from './hooks/useWebSocket'
 
+const API_URL = import.meta.env.VITE_API_URL || ''
+
 function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const { messages, connected } = useWebSocket(taskId)
 
   const pipelineComplete = messages.some(m => m.type === 'pipeline_complete')
   const pipelineResult = messages.find(m => m.type === 'pipeline_complete')
+  const pipelineFailed = messages.some(m => m.type === 'pipeline_status' && m.status === 'failed')
 
   const handleTask = useCallback((id: string) => {
     setTaskId(id)
@@ -49,7 +52,7 @@ function App() {
         <>
           <AgentPanel messages={messages} />
 
-          {/* 完成: 显示结果 */}
+          {/* 完成: 显示结果 + 下载 */}
           {pipelineComplete && (
             <div style={{
               marginTop: 24,
@@ -60,13 +63,42 @@ function App() {
             }}>
               <h3 style={{ margin: '0 0 12px', color: '#166534' }}>处理完成</h3>
               <p style={{ color: '#374151', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                {String(pipelineResult?.result || '').slice(0, 500)}
+                {String(pipelineResult?.result || '').slice(0, 800)}
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
-                <button
-                  onClick={() => {
-                    setTaskId(null)
+                <a
+                  href={`${API_URL}/api/download/${taskId}`}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#22c55e',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    fontSize: 14,
+                    fontWeight: 500,
                   }}
+                >
+                  下载精修版
+                </a>
+                <a
+                  href={`${API_URL}/api/download/${taskId}/original`}
+                  style={{
+                    padding: '10px 20px',
+                    background: '#fff',
+                    color: '#374151',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    fontSize: 14,
+                  }}
+                >
+                  下载原始版
+                </a>
+                <button
+                  onClick={() => { setTaskId(null) }}
                   style={{
                     padding: '10px 20px',
                     background: '#4f46e5',
@@ -74,11 +106,42 @@ function App() {
                     border: 'none',
                     borderRadius: 8,
                     cursor: 'pointer',
+                    fontSize: 14,
                   }}
                 >
                   处理新文档
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* 失败 */}
+          {pipelineFailed && (
+            <div style={{
+              marginTop: 24,
+              padding: 20,
+              background: '#fef2f2',
+              border: '1px solid #fecaca',
+              borderRadius: 12,
+            }}>
+              <h3 style={{ margin: '0 0 12px', color: '#991b1b' }}>处理失败</h3>
+              <p style={{ color: '#374151' }}>
+                {String(messages.find(m => m.type === 'pipeline_status' && m.status === 'failed')?.error || '未知错误')}
+              </p>
+              <button
+                onClick={() => { setTaskId(null) }}
+                style={{
+                  marginTop: 12,
+                  padding: '10px 20px',
+                  background: '#4f46e5',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                }}
+              >
+                重试
+              </button>
             </div>
           )}
         </>
