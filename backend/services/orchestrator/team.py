@@ -207,7 +207,7 @@ async def run_team(
             if not from_agent:
                 from_agent = _match_agent_key(raw_id or str(input_data.get("agent_type", ""))) or "team-lead"
 
-            to_agent = _match_agent_key(to_raw) or to_raw
+            to_agent = agent_id_map.get(to_raw) or _match_agent_key(to_raw) or to_raw
 
             await ws_manager.send(
                 task_id,
@@ -362,7 +362,7 @@ async def run_team(
     logger.info("team started task=%s format=%s", task_id, doc_format)
 
     try:
-        async with asyncio.timeout(600):  # 10 分钟超时
+        async with asyncio.timeout(900):  # 15 分钟超时（3 轮返工 × 3 agent × ~1.5 min）
             async with ClaudeSDKClient(options=options) as client:
                 await client.query(lead_prompt)
                 async for message in client.receive_response():
@@ -424,7 +424,7 @@ async def run_team(
             {
                 "type": "team_status",
                 "status": "failed",
-                "error": "处理超时（10 分钟），请检查文档复杂度或稍后重试",
+                "error": "处理超时（15 分钟），请检查文档复杂度或稍后重试",
             },
         )
     except Exception as e:

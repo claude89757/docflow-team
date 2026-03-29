@@ -46,7 +46,7 @@ async def main():
                 print("  OK: WebSocket 已连接")
                 while True:
                     try:
-                        msg = await asyncio.wait_for(ws.recv(), timeout=300)
+                        msg = await asyncio.wait_for(ws.recv(), timeout=900)
                         if not msg or msg in ("pong", "ping"):
                             continue
                         try:
