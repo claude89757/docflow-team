@@ -1,14 +1,17 @@
 import { useState, useCallback, useMemo } from 'react'
 import { AppShell } from './components/AppShell'
-import { UploadCard } from './components/landing/UploadCard'
-import { GenerateCard } from './components/landing/GenerateCard'
+import { HeroSection } from './components/landing/HeroSection'
+import { FeatureCards } from './components/landing/FeatureCards'
+import { UnifiedInput } from './components/landing/UnifiedInput'
 import { TeamWorkspace } from './components/workspace/TeamWorkspace'
 import { ResultsPanel } from './components/results/ResultsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
-import { Users, Upload, Sparkles } from 'lucide-react'
+
+type Page = 'home' | 'usage'
 
 function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
+  const [page, setPage] = useState<Page>('home')
   const { messages, connected } = useWebSocket(taskId)
 
   const teamComplete = useMemo(() => messages.some(m => m.type === 'team_complete'), [messages])
@@ -16,53 +19,44 @@ function App() {
 
   const handleTask = useCallback((id: string) => {
     setTaskId(id)
+    setPage('home')
   }, [])
 
   const handleReset = useCallback(() => {
     setTaskId(null)
   }, [])
 
-  return (
-    <AppShell taskId={taskId} connected={connected} onReset={handleReset}>
-      {/* Landing: no task */}
-      {!taskId && (
-        <div className="animate-fade-in">
-          {/* Hero */}
-          <div className="mb-10 text-center">
-            <h1 className="mb-3 text-2xl font-bold tracking-tight text-slate-900 md:text-3xl">
-              AI 文档精修团队
-            </h1>
-            <p className="mx-auto max-w-lg text-base text-slate-500">
-              由多位 AI 专家组成的自主团队，协作完成文档生成、内容编辑、排版设计和质量审核
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-400 md:gap-6">
-              <span className="flex items-center gap-1.5">
-                <Users className="h-4 w-4" /> 4 位 AI 专家
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Upload className="h-4 w-4" /> docx / pptx / xlsx / pdf
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4" /> 自主协作
-              </span>
-            </div>
-          </div>
+  const handleNavigate = useCallback((p: Page) => {
+    setPage(p)
+  }, [])
 
-          {/* Upload + Generate cards */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div>
-              <h3 className="mb-3 text-sm font-medium text-slate-500">上传已有文档</h3>
-              <UploadCard onTask={handleTask} />
-            </div>
-            <div>
-              <h3 className="mb-3 text-sm font-medium text-slate-500">从描述生成</h3>
-              <GenerateCard onTask={handleTask} />
-            </div>
+  return (
+    <AppShell
+      taskId={taskId}
+      connected={connected}
+      onReset={handleReset}
+      onNavigate={handleNavigate}
+      currentPage={page}
+    >
+      {/* Landing */}
+      {!taskId && page === 'home' && (
+        <div className="animate-fade-in">
+          <HeroSection />
+          <FeatureCards />
+          <div className="mx-auto max-w-xl">
+            <UnifiedInput onTask={handleTask} />
           </div>
         </div>
       )}
 
-      {/* Processing: task active */}
+      {/* Usage Dashboard (lazy load later) */}
+      {!taskId && page === 'usage' && (
+        <div className="animate-fade-in py-10 text-center" style={{ color: 'var(--color-text-tertiary)' }}>
+          用量仪表盘（将在 Task 11 实现）
+        </div>
+      )}
+
+      {/* Processing */}
       {taskId && (
         <>
           <TeamWorkspace messages={messages} connected={connected} />
