@@ -13,7 +13,7 @@ type Page = 'home' | 'usage'
 function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const [page, setPage] = useState<Page>('home')
-  const { messages, connected } = useWebSocket(taskId)
+  const { messages, connected, tokenState } = useWebSocket(taskId)
 
   const teamComplete = useMemo(() => messages.some(m => m.type === 'team_complete'), [messages])
   const teamFailed = useMemo(() => messages.some(m => m.type === 'team_status' && m.status === 'failed'), [messages])
@@ -56,7 +56,7 @@ function App() {
       {/* Processing */}
       {taskId && (
         <>
-          <TeamWorkspace messages={messages} connected={connected} />
+          <TeamWorkspace messages={messages} connected={connected} tokenState={tokenState} />
           {(teamComplete || teamFailed) && (
             <ResultsPanel taskId={taskId} messages={messages} onReset={handleReset} />
           )}
