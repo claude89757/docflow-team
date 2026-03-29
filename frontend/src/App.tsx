@@ -11,8 +11,8 @@ function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const { messages, connected } = useWebSocket(taskId)
 
-  const pipelineComplete = useMemo(() => messages.some(m => m.type === 'pipeline_complete'), [messages])
-  const pipelineFailed = useMemo(() => messages.some(m => m.type === 'pipeline_status' && m.status === 'failed'), [messages])
+  const teamComplete = useMemo(() => messages.some(m => m.type === 'team_complete'), [messages])
+  const teamFailed = useMemo(() => messages.some(m => m.type === 'team_status' && m.status === 'failed'), [messages])
 
   const handleTask = useCallback((id: string) => {
     setTaskId(id)
@@ -66,7 +66,7 @@ function App() {
       {taskId && (
         <>
           <TeamWorkspace messages={messages} connected={connected} />
-          {(pipelineComplete || pipelineFailed) && (
+          {(teamComplete || teamFailed) && (
             <ResultsPanel taskId={taskId} messages={messages} onReset={handleReset} />
           )}
         </>

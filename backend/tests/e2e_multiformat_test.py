@@ -12,7 +12,7 @@ from docx import Document
 from backend.processors import get_processor
 
 
-def test_docx_full_pipeline():
+def test_docx_full_flow():
     """docx: parse → replace → format → 验证输出"""
     with tempfile.TemporaryDirectory() as tmpdir:
         src = os.path.join(tmpdir, "input.docx")
@@ -26,7 +26,7 @@ def test_docx_full_pipeline():
         doc.add_paragraph("综上所述，我们可以得出结论。")
         doc.save(src)
 
-        # 管线
+        # 处理链路
         proc = get_processor(src)
         parsed = proc.parse(src)
         assert parsed["format"] == "docx"
@@ -42,10 +42,10 @@ def test_docx_full_pipeline():
         texts = [p.text for p in result_doc.paragraphs if p.text.strip()]
         assert any("AI 技术" in t for t in texts)
         assert any("总结" in t for t in texts)
-        print(f"✓ docx pipeline: {len(texts)} paragraphs, output at {formatted}")
+        print(f"✓ docx flow: {len(texts)} paragraphs, output at {formatted}")
 
 
-def test_pptx_full_pipeline():
+def test_pptx_full_flow():
     """pptx: parse → replace → format → 验证输出"""
     from pptx import Presentation
     from pptx.util import Inches
@@ -65,7 +65,7 @@ def test_pptx_full_pipeline():
         p.text = "综上所述，我们认为"
         prs.save(src)
 
-        # 管线
+        # 处理链路
         proc = get_processor(src)
         parsed = proc.parse(src)
         assert parsed["format"] == "pptx"
@@ -82,10 +82,10 @@ def test_pptx_full_pipeline():
             if shape.has_text_frame:
                 all_text += shape.text_frame.text
         assert "关键发现" in all_text
-        print(f"✓ pptx pipeline: {parsed['slide_count']} slides, output at {formatted}")
+        print(f"✓ pptx flow: {parsed['slide_count']} slides, output at {formatted}")
 
 
-def test_xlsx_full_pipeline():
+def test_xlsx_full_flow():
     """xlsx: parse → replace (跳过公式) → format → 验证输出"""
     from openpyxl import Workbook, load_workbook
 
@@ -105,7 +105,7 @@ def test_xlsx_full_pipeline():
         wb.save(src)
         wb.close()
 
-        # 管线
+        # 处理链路
         proc = get_processor(src)
         parsed = proc.parse(src)
         assert parsed["format"] == "xlsx"
@@ -122,10 +122,10 @@ def test_xlsx_full_pipeline():
         assert ws["A2"].value == 100  # 数字不动
         assert ws["B2"].value == "=A2*2"  # 公式不动
         wb.close()
-        print(f"✓ xlsx pipeline: {parsed['sheet_count']} sheets, formulas preserved, output at {formatted}")
+        print(f"✓ xlsx flow: {parsed['sheet_count']} sheets, formulas preserved, output at {formatted}")
 
 
-def test_pdf_full_pipeline():
+def test_pdf_full_flow():
     """pdf: parse → to_docx → replace → format → 验证输出为 docx"""
     import fitz
 
@@ -143,7 +143,7 @@ def test_pdf_full_pipeline():
         doc.save(src)
         doc.close()
 
-        # 管线
+        # 处理链路
         proc = get_processor(src)
         parsed = proc.parse(src)
         assert parsed["format"] == "pdf"
@@ -165,7 +165,7 @@ def test_pdf_full_pipeline():
         converted = DocxDocument(docx_path)
         all_text = " ".join(p.text for p in converted.paragraphs)
         assert "Report Title" in all_text
-        print(f"✓ pdf pipeline: {parsed['page_count']} pages, output as docx at {result}")
+        print(f"✓ pdf flow: {parsed['page_count']} pages, output as docx at {result}")
 
 
 def test_processor_factory_routing():
@@ -191,8 +191,8 @@ def test_processor_factory_routing():
 
 if __name__ == "__main__":
     test_processor_factory_routing()
-    test_docx_full_pipeline()
-    test_pptx_full_pipeline()
-    test_xlsx_full_pipeline()
-    test_pdf_full_pipeline()
+    test_docx_full_flow()
+    test_pptx_full_flow()
+    test_xlsx_full_flow()
+    test_pdf_full_flow()
     print("\n=== All E2E multi-format tests passed ===")

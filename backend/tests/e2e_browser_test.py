@@ -1,7 +1,7 @@
 """
 E2E 浏览器联调测试: 通过 Vite proxy (localhost:5173) 跑完整流程
 
-模拟浏览器行为: 上传 → WebSocket → 管线 → 下载
+模拟浏览器行为: 上传 → WebSocket → 团队协作 → 下载
 """
 import asyncio
 import json
@@ -49,12 +49,16 @@ async def main():
                         status = data.get("status", "?")
                         agent_timeline.append(f"{agent}: {status}")
                         print(f"  [{len(events):3d}] Agent: {agent} → {status}")
+                    elif t == "agent_message":
+                        print(f"  [{len(events):3d}] Message: {data.get('from')} → {data.get('to')}")
+                    elif t == "rework_cycle":
+                        print(f"  [{len(events):3d}] Rework: round {data.get('round')}/{data.get('max')}")
                     elif t == "tool_call":
                         print(f"  [{len(events):3d}] Tool: {data.get('tool')} → {data.get('target', '')}")
-                    elif t == "pipeline_complete":
+                    elif t == "team_complete":
                         print(f"  [{len(events):3d}] COMPLETE")
                         return
-                    elif t == "pipeline_status" and data.get("status") == "failed":
+                    elif t == "team_status" and data.get("status") == "failed":
                         print(f"  [{len(events):3d}] FAILED: {data.get('error')}")
                         return
                 except TimeoutError:
@@ -62,7 +66,7 @@ async def main():
                     return
 
     # 3. 触发处理
-    print("\n[3/5] 触发管线...")
+    print("\n[3/5] 触发团队处理...")
     ws_task = asyncio.create_task(listen())
     await asyncio.sleep(1)
 
@@ -106,12 +110,14 @@ async def main():
     for entry in agent_timeline:
         print(f"  {entry}")
 
-    complete = any(e.get("type") == "pipeline_complete" for e in events)
+    complete = any(e.get("type") == "team_complete" for e in events)
     has_agents = len(agent_timeline) > 0
+    has_messages = any(e.get("type") == "agent_message" for e in events)
     download_ok = res.status_code == 200 if 'res' in dir() else False
 
-    print(f"\n管线完成: {'YES' if complete else 'NO'}")
+    print(f"\n团队完成: {'YES' if complete else 'NO'}")
     print(f"Agent 事件: {'YES' if has_agents else 'NO'}")
+    print(f"横向消息: {'YES' if has_messages else 'NO'}")
     print(f"下载可用: {'YES' if download_ok else 'NO'}")
     print(f"\nE2E 浏览器联调: {'PASS' if complete else 'FAIL'}")
 

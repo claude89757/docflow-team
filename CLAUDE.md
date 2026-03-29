@@ -41,7 +41,7 @@ cp .env.example .env  # 需要 ANTHROPIC_API_KEY
 - `perf` — 性能优化
 - `style` — 代码风格（不改逻辑）
 
-**Scope（可选）:** `frontend`, `backend`, `pipeline`, `infra`
+**Scope（可选）:** `frontend`, `backend`, `team`, `infra`
 
 **示例：**
 ```
@@ -61,7 +61,7 @@ docs: 更新 CLAUDE.md 项目上下文
 ## Gotchas
 
 - PDF 输入会自动转换为 .docx 输出（PDF 不可原地修改）
-- Pipeline 在 FastAPI background_tasks 中运行，单进程模型
+- Agent Teams 在 FastAPI background_tasks 中运行，单进程模型
 - Agent Teams SDK 是实验性功能，依赖环境变量开关
 - POC 和 E2E 测试被排除，需 `make test-poc` / `make test-e2e` 单独运行
 

@@ -19,7 +19,7 @@ export function messageToActivity(msg: WSMessage, index: number): ActivityEntry 
   const id = `act-${index}-${msg.type}`
   const timestamp = Date.now()
 
-  if (msg.type === 'pipeline_status') {
+  if (msg.type === 'team_status') {
     const status = String(msg.status || '')
     if (status === 'started') {
       return { id, timestamp, type: 'harness_decision', agent: 'team-lead', content: '启动文档精修任务' }
@@ -71,7 +71,26 @@ export function messageToActivity(msg: WSMessage, index: number): ActivityEntry 
     }
   }
 
-  if (msg.type === 'pipeline_complete') {
+  if (msg.type === 'agent_message') {
+    const from = matchAgent(String(msg.from || msg.agent || ''))
+    const to = matchAgent(String(msg.to || msg.target || ''))
+    return {
+      id, timestamp, type: 'agent_message',
+      agent: from, target: to,
+      content: String(msg.content || ''),
+    }
+  }
+
+  if (msg.type === 'rework_cycle') {
+    return {
+      id, timestamp, type: 'rework_request',
+      agent: 'quality-reviewer',
+      content: `第 ${msg.round}/${msg.max} 轮: ${String(msg.reviewer_notes || '需要返工')}`,
+      round: Number(msg.round),
+    }
+  }
+
+  if (msg.type === 'team_complete') {
     return { id, timestamp, type: 'complete', content: '处理完成' }
   }
 
@@ -99,7 +118,7 @@ export function deriveTeamState(messages: WSMessage[]): TeamState {
     if (entry) activities.push(entry)
 
     // Update member states
-    if (msg.type === 'pipeline_status') {
+    if (msg.type === 'team_status') {
       const status = String(msg.status || '')
       if (status === 'started') {
         members['team-lead'].status = 'active'
@@ -139,7 +158,26 @@ export function deriveTeamState(messages: WSMessage[]): TeamState {
       }
     }
 
-    if (msg.type === 'pipeline_complete') {
+    if (msg.type === 'agent_message') {
+      const from = matchAgent(String(msg.from || msg.agent || ''))
+      const to = matchAgent(String(msg.to || msg.target || ''))
+      if (from && members[from]) members[from].status = 'active'
+      if (to && members[to]) members[to].status = 'active'
+    }
+
+    if (msg.type === 'rework_cycle') {
+      round = Number(msg.round) || round + 1
+      members['content-editor'].status = 'active'
+      activities.push({
+        id: `round-${round}`,
+        timestamp: Date.now(),
+        type: 'round_start',
+        content: `第 ${round} 轮`,
+        round,
+      })
+    }
+
+    if (msg.type === 'team_complete') {
       phase = 'completed'
       members['team-lead'].status = 'completed'
     }

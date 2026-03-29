@@ -39,7 +39,7 @@ async def download_output(task_id: str):
                 media_type=MIME_TYPES.get(ext, "application/octet-stream"),
             )
 
-    raise HTTPException(404, "输出文件尚未生成，管线可能仍在运行")
+    raise HTTPException(404, "输出文件尚未生成，任务可能仍在处理")
 
 
 @router.get("/download/{task_id}/original")

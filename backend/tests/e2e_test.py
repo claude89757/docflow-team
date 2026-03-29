@@ -1,5 +1,5 @@
 """
-E2E 测试: 上传 docx → 跑管线 → 收集 WebSocket 事件
+E2E 测试: 上传 docx → 团队协作处理 → 收集 WebSocket 事件
 
 运行: python backend/tests/e2e_test.py
 """
@@ -17,7 +17,7 @@ TEST_DOC = "backend/tests/fixtures/ai_flavored_doc.docx"
 
 async def main():
     print("=" * 60)
-    print("E2E 测试: 上传 → 管线 → WebSocket")
+    print("E2E 测试: 上传 → 团队协作 → WebSocket")
     print("=" * 60)
 
     # Step 1: 上传文件
@@ -47,22 +47,29 @@ async def main():
                 while True:
                     try:
                         msg = await asyncio.wait_for(ws.recv(), timeout=300)
-                        if msg == "pong":
+                        if not msg or msg in ("pong", "ping"):
                             continue
-                        data = json.loads(msg)
+                        try:
+                            data = json.loads(msg)
+                        except json.JSONDecodeError:
+                            continue
                         ws_events.append(data)
                         evt_type = data.get("type", "?")
                         if evt_type == "agent_status":
                             print(f"  [WS] {evt_type}: {data.get('agent', '?')} → {data.get('status', '?')}")
+                        elif evt_type == "agent_message":
+                            print(f"  [WS] 消息: {data.get('from', '?')} → {data.get('to', '?')}")
+                        elif evt_type == "rework_cycle":
+                            print(f"  [WS] 返工: 第 {data.get('round', '?')}/{data.get('max', '?')} 轮")
                         elif evt_type == "score_update":
                             scores = data.get("scores", {})
                             print(f"  [WS] 评分: total={scores.get('total', '?')} passed={scores.get('passed', '?')}")
-                        elif evt_type == "pipeline_complete":
+                        elif evt_type == "team_complete":
                             result = str(data.get("result", ""))[:150]
-                            print(f"  [WS] 管线完成: {result}...")
+                            print(f"  [WS] 团队完成: {result}...")
                             return
-                        elif evt_type == "pipeline_status":
-                            print(f"  [WS] 管线状态: {data.get('status', '?')}")
+                        elif evt_type == "team_status":
+                            print(f"  [WS] 团队状态: {data.get('status', '?')}")
                             if data.get("status") == "failed":
                                 print(f"  [WS] 错误: {data.get('error', '?')}")
                                 return
@@ -77,7 +84,7 @@ async def main():
             print(f"  WS ERROR: {e}")
 
     # Step 3: 触发处理（同时监听 WS）
-    print("\n[3/4] 触发管线处理...")
+    print("\n[3/4] 触发团队处理...")
     ws_task = asyncio.create_task(listen_ws())
 
     # 等一下让 WS 连上
@@ -89,9 +96,9 @@ async def main():
             print(f"  FAIL: {res.status_code} {res.text}")
             ws_task.cancel()
             sys.exit(1)
-        print("  OK: 管线已启动")
+        print("  OK: 团队已启动")
 
-    # 等待管线完成
+    # 等待完成
     await ws_task
 
     # Step 4: 汇总
@@ -106,17 +113,19 @@ async def main():
     print(f"事件类型分布: {json.dumps(event_types, ensure_ascii=False)}")
 
     has_agent_events = any(e.get("type") == "agent_status" for e in ws_events)
-    has_complete = any(e.get("type") == "pipeline_complete" for e in ws_events)
+    has_agent_messages = any(e.get("type") == "agent_message" for e in ws_events)
+    has_complete = any(e.get("type") == "team_complete" for e in ws_events)
     has_score = any(e.get("type") == "score_update" for e in ws_events)
 
     print(f"\nAgent 状态事件: {'YES' if has_agent_events else 'NO'}")
-    print(f"管线完成事件: {'YES' if has_complete else 'NO'}")
+    print(f"Agent 横向消息: {'YES' if has_agent_messages else 'NO'}")
+    print(f"团队完成事件: {'YES' if has_complete else 'NO'}")
     print(f"评分事件: {'YES' if has_score else 'NO'}")
 
     if has_complete:
         print("\nE2E: PASS")
     elif has_agent_events:
-        print("\nE2E: PARTIAL (有 agent 事件但管线未完成)")
+        print("\nE2E: PARTIAL (有 agent 事件但团队未完成)")
     else:
         print("\nE2E: FAIL")
 

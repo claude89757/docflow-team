@@ -88,10 +88,10 @@ describe('useWebSocket', () => {
     const { result } = renderHook(() => useWebSocket('task-123'))
     act(() => {
       MockWebSocket.instances[0].simulateOpen()
-      MockWebSocket.instances[0].simulateMessage({ type: 'pipeline_status', status: 'started' })
+      MockWebSocket.instances[0].simulateMessage({ type: 'team_status', status: 'started' })
     })
     expect(result.current.messages).toHaveLength(1)
-    expect(result.current.messages[0].type).toBe('pipeline_status')
+    expect(result.current.messages[0].type).toBe('team_status')
 
     act(() => {
       MockWebSocket.instances[0].simulateMessage({ type: 'agent_status', agent: 'editor', status: 'working' })
@@ -116,7 +116,7 @@ describe('useWebSocket', () => {
     )
     act(() => {
       MockWebSocket.instances[0].simulateOpen()
-      MockWebSocket.instances[0].simulateMessage({ type: 'pipeline_status', status: 'started' })
+      MockWebSocket.instances[0].simulateMessage({ type: 'team_status', status: 'started' })
     })
     expect(result.current.messages).toHaveLength(1)
 
@@ -142,7 +142,7 @@ describe('useWebSocket', () => {
     const { result } = renderHook(() => useWebSocket('task-123'))
     act(() => {
       MockWebSocket.instances[0].simulateOpen()
-      MockWebSocket.instances[0].simulateMessage({ type: 'pipeline_status', status: 'started' })
+      MockWebSocket.instances[0].simulateMessage({ type: 'team_status', status: 'started' })
     })
     expect(result.current.messages).toHaveLength(1)
 

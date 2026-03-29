@@ -11,8 +11,8 @@ interface Props {
 
 export function ResultsPanel({ taskId, messages, onReset }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const completeMsg = messages.find(m => m.type === 'pipeline_complete')
-  const failedMsg = messages.find(m => m.type === 'pipeline_status' && m.status === 'failed')
+  const completeMsg = messages.find(m => m.type === 'team_complete')
+  const failedMsg = messages.find(m => m.type === 'team_status' && m.status === 'failed')
   const scoreMsg = [...messages].reverse().find(m => m.type === 'score_update')
   const scores = scoreMsg?.scores as ScoreResult | undefined
 

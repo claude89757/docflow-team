@@ -4,7 +4,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 from backend.models.schemas import GenerateRequest, GenerateResponse, TaskStatus
-from backend.services.orchestrator.pipeline import run_pipeline
+from backend.services.orchestrator.team import run_team
 from backend.services.ws_manager import ws_manager
 
 router = APIRouter()
@@ -20,7 +20,7 @@ async def generate_document(req: GenerateRequest, background_tasks: BackgroundTa
     task_dir.mkdir(parents=True, exist_ok=True)
 
     background_tasks.add_task(
-        run_pipeline,
+        run_team,
         task_id=task_id,
         task_dir=str(task_dir),
         description=req.description,
@@ -51,7 +51,7 @@ async def process_uploaded(task_id: str, background_tasks: BackgroundTasks):
         raise HTTPException(404, "未找到上传的文件")
 
     background_tasks.add_task(
-        run_pipeline,
+        run_team,
         task_id=task_id,
         task_dir=str(task_dir),
         description=None,

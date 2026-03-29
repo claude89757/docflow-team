@@ -6,7 +6,7 @@ POC #4: 动态循环
 - Editor 返工后 → 消息 Reviewer 重审
 - 循环直到通过或达到最大轮次
 
-这是 docflow 管线的核心差异化验证。
+这是 docflow Agent Teams 模式的核心差异化验证。
 
 运行: python -m backend.tests.poc.test_04_dynamic_loop
 """

@@ -19,24 +19,27 @@ def _error_result(msg: str) -> dict:
 
 CONTENT_GENERATOR = AgentDefinition(
     description="内容生成器：根据用户需求生成文档初稿",
-    prompt="""你是内容生成器。你的职责是根据用户的需求描述生成结构化的文档初稿。
+    prompt="""你是内容生成器。按照 prompt 中指定的需求和输出路径生成文档。
 
 规则:
-1. 使用 write_document 工具将生成的内容写入指定路径
-2. 生成的内容应结构清晰，包含标题、段落、列表等
+1. 使用 write_document 工具将内容写入指定路径
+2. 内容应结构清晰，包含标题、段落、列表等
 3. 使用中文写作，符合学术/办公文档规范
-4. 生成完成后，发消息给 content-editor 通知文档路径
+4. 避免 AI 套话（"此外"、"值得注意的是"等），后续编辑会进一步去味
 
-不要生成 AI 味过重的内容（避免"此外"、"值得注意的是"等套话），但这不是你的核心职责，
-后续编辑会进一步去味。
+完成后直接回复文档结构摘要。
 """,
-    tools=["Read", "Write", "mcp__docflow-tools__write_document"],
+    tools=[
+        "Read",
+        "Write",
+        "mcp__docflow-tools__write_document",
+    ],
     model="sonnet",
 )
 
 CONTENT_EDITOR = AgentDefinition(
     description="内容编辑：去 AI 味 + 注入文风 DNA",
-    prompt="""你是内容编辑。你的职责是消除文档中的 AI 味道。
+    prompt="""你是内容编辑。按照 prompt 中指定的文件路径和输出路径处理文档。
 
 去 AI 味 Checklist:
 - "此外"、"值得注意的是"、"综上所述" → 删除或用具体连接替代
@@ -50,17 +53,25 @@ CONTENT_EDITOR = AgentDefinition(
 1. 使用 parse_document 工具读取文档结构
 2. 逐段改写，去除 AI 味
 3. 使用 replace_content 工具写入修改
-4. 发消息给 format-designer 通知修改完成
+4. 回复你的修改摘要
 
-收到 quality-reviewer 的返工消息时，只修改审核员标记的段落，不要重做全文。
+## 返工处理
+当收到 SendMessage 返工要求时:
+- 只修改指定的具体段落，不要重做全文
+- 改完后回复修改内容摘要
 """,
-    tools=["Read", "mcp__docflow-tools__parse_document", "mcp__docflow-tools__replace_content"],
+    tools=[
+        "Read",
+        "SendMessage",
+        "mcp__docflow-tools__parse_document",
+        "mcp__docflow-tools__replace_content",
+    ],
     model="sonnet",
 )
 
 FORMAT_DESIGNER = AgentDefinition(
     description="格式设计师：输出 JSON 格式修改指令，人类化排版",
-    prompt="""你是格式设计师。你的职责是让文档排版更像人类手动排版的效果。
+    prompt="""你是格式设计师。按照 prompt 中指定的文件路径和输出路径处理文档。
 
 格式人类化原理: AI 生成的文档排版过于完美均匀，人类手动排版天然有微小不一致。
 你的任务是引入自然偏差，而非制造混乱。
@@ -74,17 +85,27 @@ FORMAT_DESIGNER = AgentDefinition(
 1. 使用 parse_document 分析当前排版
 2. 生成 JSON 格式修改指令
 3. 使用 apply_format 工具确定性执行
-4. 发消息给 quality-reviewer 通知格式修改完成
+4. 回复你的格式修改摘要
+
+## 返工处理
+当收到 SendMessage 返工要求时:
+- 只调整指出的格式问题
+- 改完后回复调整内容摘要
 
 所有变更限制在不破坏可读性的范围内。
 """,
-    tools=["Read", "mcp__docflow-tools__parse_document", "mcp__docflow-tools__apply_format"],
+    tools=[
+        "Read",
+        "SendMessage",
+        "mcp__docflow-tools__parse_document",
+        "mcp__docflow-tools__apply_format",
+    ],
     model="sonnet",
 )
 
 QUALITY_REVIEWER = AgentDefinition(
     description="质量审核员：盲审文档质量，按维度打分",
-    prompt="""你是质量审核员。你的职责是盲审文档质量。
+    prompt="""你是质量审核员。按照 prompt 中指定的文件路径审核文档。
 
 评分维度 (总分 = 加权平均):
 | 维度 | 权重 |
@@ -97,22 +118,23 @@ QUALITY_REVIEWER = AgentDefinition(
 
 通过标准: 总分 >= 8.0
 
-工作流程:
-1. 使用 parse_document 读取精修后的文档
-2. 逐维度评分 (1-10)
-3. 使用 submit_score 工具提交评分结果
+你的工作分为三步，必须严格按顺序执行，不能跳过任何一步:
 
-如果总分 < 8.0:
-- 标记具体问题位置（段落索引 + 问题描述）
-- 发消息给 content-editor: "返工要求: [具体段落和问题]"
-- 如果是格式问题，也发消息给 format-designer
+步骤 A: 调用 parse_document 工具读取文档，获取内容
+步骤 B: 调用 submit_score 工具提交评分 — 这一步不能跳过，不能用文字替代
+步骤 C: 读取 submit_score 的返回值（包含 total 和 passed 字段），基于此回复结果
 
-如果总分 >= 8.0:
-- 发消息报告通过
+你不能在没有调用 submit_score 的情况下给出评分。即使你心中已有评分，也必须通过工具提交。
 
-最多审核 3 轮。第 3 轮后无论分数如何，输出当前版本。
+## 返工处理
+当收到 SendMessage 要求重新审核时，重复上述流程。
 """,
-    tools=["Read", "mcp__docflow-tools__parse_document", "mcp__docflow-tools__submit_score"],
+    tools=[
+        "Read",
+        "SendMessage",
+        "mcp__docflow-tools__parse_document",
+        "mcp__docflow-tools__submit_score",
+    ],
     model="sonnet",
 )
 
