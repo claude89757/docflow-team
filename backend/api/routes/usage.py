@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from backend.services.usage_tracker import load_all_usage
 
@@ -66,9 +66,11 @@ async def usage_history(page: int = 1, size: int = 20):
 @router.get("/{task_id}")
 async def usage_detail(task_id: str):
     task_dir = Path(UPLOADS_DIR) / task_id
+    if not task_dir.resolve().is_relative_to(Path(UPLOADS_DIR).resolve()):
+        raise HTTPException(status_code=400, detail="invalid task_id")
     usage_file = task_dir / "usage.json"
     if not usage_file.exists():
-        return {"error": "not found"}
+        raise HTTPException(status_code=404, detail="not found")
     import json
 
     return json.loads(usage_file.read_text())
