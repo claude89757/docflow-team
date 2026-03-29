@@ -117,11 +117,12 @@ export function ActivityItem({ entry }: Props) {
             {Object.entries(SCORE_LABELS).map(([key, label]) => {
               const val = (scores as ScoreResult)[key as keyof ScoreResult] as number
               const color = val >= 8 ? 'var(--color-success)' : 'var(--color-warning)'
+              const bgColor = val >= 8 ? 'rgba(52, 199, 89, 0.06)' : 'rgba(255, 159, 10, 0.06)'
               return (
                 <span
                   key={key}
                   className="rounded-md px-2 py-0.5 text-xs font-semibold"
-                  style={{ backgroundColor: `${color}10`, color }}
+                  style={{ backgroundColor: bgColor, color }}
                 >
                   {label} {val}
                 </span>
