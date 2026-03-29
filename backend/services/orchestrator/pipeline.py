@@ -35,12 +35,15 @@ async def run_pipeline(
         },
     )
 
-    # 构建 Team Lead prompt
-    output_path = str(Path(task_dir) / f"output.{doc_format}")
-    edited_path = str(Path(task_dir) / f"edited.{doc_format}")
-    formatted_path = str(Path(task_dir) / f"formatted.{doc_format}")
+    # PDF 输入 → 输出为 docx（PDF 不支持原地修改）
+    out_format = "docx" if doc_format == "pdf" else doc_format
 
-    draft_path = str(Path(task_dir) / f"draft.{doc_format}")
+    # 构建 Team Lead prompt
+    output_path = str(Path(task_dir) / f"output.{out_format}")
+    edited_path = str(Path(task_dir) / f"edited.{out_format}")
+    formatted_path = str(Path(task_dir) / f"formatted.{out_format}")
+
+    draft_path = str(Path(task_dir) / f"draft.{out_format}")
 
     if source_file:
         # 精修模式：已有文档
@@ -56,19 +59,19 @@ async def run_pipeline(
 
 ### 步骤 1: 内容编辑
 使用 Agent 工具启动 content-editor，在 prompt 中告诉它:
-"读取 {source_file}，使用 parse_docx 工具解析文档，然后用 replace_paragraphs 工具去除 AI 味词汇，输出到 {edited_path}。完成后回复你的修改摘要。"
+"读取 {source_file}，使用 parse_document 工具解析文档，然后用 replace_content 工具去除 AI 味词汇，输出到 {edited_path}。完成后回复你的修改摘要。"
 
 等 content-editor 返回结果后，记录它的修改摘要。然后继续步骤 2。
 
 ### 步骤 2: 格式设计
 使用 Agent 工具启动 format-designer，在 prompt 中告诉它:
-"读取 {edited_path}，使用 parse_docx 分析排版，然后用 apply_format_changes 工具人类化排版，输出到 {formatted_path}。完成后回复你的格式修改摘要。"
+"读取 {edited_path}，使用 parse_document 分析排版，然后用 apply_format 工具人类化排版，输出到 {formatted_path}。完成后回复你的格式修改摘要。"
 
 等 format-designer 返回结果后，记录它的修改摘要。然后继续步骤 3。
 
 ### 步骤 3: 质量审核
 使用 Agent 工具启动 quality-reviewer，在 prompt 中告诉它:
-"读取 {formatted_path}，使用 parse_docx 工具分析文档内容和格式，逐维度评分 (词汇自然度、句式多样性、格式人类感、逻辑连贯性、领域适配度)，使用 submit_score 工具提交评分。如果总分 < 8.0，列出需要返工的具体段落和问题。"
+"读取 {formatted_path}，使用 parse_document 工具分析文档内容和格式，逐维度评分 (词汇自然度、句式多样性、格式人类感、逻辑连贯性、领域适配度)，使用 submit_score 工具提交评分。如果总分 < 8.0，列出需要返工的具体段落和问题。"
 
 等 quality-reviewer 返回结果后:
 - 如果通过 (>= 8.0): 用 Bash 工具执行 `cp {formatted_path} {output_path}`，然后输出最终报告
@@ -108,19 +111,19 @@ async def run_pipeline(
 
 ### 步骤 2: 内容编辑
 使用 Agent 工具启动 content-editor，在 prompt 中告诉它:
-"读取 {draft_path}，使用 parse_docx 工具解析文档，然后用 replace_paragraphs 工具去除 AI 味词汇，输出到 {edited_path}。完成后回复你的修改摘要。"
+"读取 {draft_path}，使用 parse_document 工具解析文档，然后用 replace_content 工具去除 AI 味词汇，输出到 {edited_path}。完成后回复你的修改摘要。"
 
 等 content-editor 返回结果后，记录修改摘要。继续步骤 3。
 
 ### 步骤 3: 格式设计
 使用 Agent 工具启动 format-designer，在 prompt 中告诉它:
-"读取 {edited_path}，使用 parse_docx 分析排版，然后用 apply_format_changes 工具人类化排版，输出到 {formatted_path}。完成后回复你的格式修改摘要。"
+"读取 {edited_path}，使用 parse_document 分析排版，然后用 apply_format 工具人类化排版，输出到 {formatted_path}。完成后回复你的格式修改摘要。"
 
 等 format-designer 返回结果后，记录修改摘要。继续步骤 4。
 
 ### 步骤 4: 质量审核
 使用 Agent 工具启动 quality-reviewer，在 prompt 中告诉它:
-"读取 {formatted_path}，使用 parse_docx 工具分析文档内容和格式，逐维度评分 (词汇自然度、句式多样性、格式人类感、逻辑连贯性、领域适配度)，使用 submit_score 工具提交评分。如果总分 < 8.0，列出需要返工的具体段落和问题。"
+"读取 {formatted_path}，使用 parse_document 工具分析文档内容和格式，逐维度评分 (词汇自然度、句式多样性、格式人类感、逻辑连贯性、领域适配度)，使用 submit_score 工具提交评分。如果总分 < 8.0，列出需要返工的具体段落和问题。"
 
 等 quality-reviewer 返回结果后:
 - 如果通过 (>= 8.0): 用 Bash 工具执行 `cp {formatted_path} {output_path}`，然后输出最终报告
@@ -221,7 +224,11 @@ async def run_pipeline(
             "TaskCreate",
             "TaskUpdate",
             "SendMessage",
-            "mcp__docflow-tools__*",
+            "mcp__docflow-tools__parse_document",
+            "mcp__docflow-tools__replace_content",
+            "mcp__docflow-tools__apply_format",
+            "mcp__docflow-tools__write_document",
+            "mcp__docflow-tools__submit_score",
         ],
         permission_mode="acceptEdits",
         include_partial_messages=True,

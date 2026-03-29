@@ -1,11 +1,13 @@
-"""DocxProcessor 单元测试"""
+"""DocxProcessor 单元测试 + 处理器工厂测试"""
 
 import os
 import tempfile
 from pathlib import Path
 
+import pytest
 from docx import Document
 
+from backend.processors import get_processor
 from backend.processors.docx_processor import DocxProcessor
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -41,14 +43,14 @@ def test_get_stats():
     assert stats["total_chars"] > 0
 
 
-def test_replace_paragraph_text():
+def test_replace_text():
     processor = DocxProcessor()
     with tempfile.TemporaryDirectory() as tmpdir:
         src = os.path.join(tmpdir, "src.docx")
         out = os.path.join(tmpdir, "out.docx")
         _create_simple_doc(src, ["第一段原文", "第二段原文", "第三段原文"])
 
-        processor.replace_paragraph_text(src, {"0": "第一段修改后", "2": "第三段修改后"}, out)
+        processor.replace_text(src, {"0": "第一段修改后", "2": "第三段修改后"}, out)
 
         doc = Document(out)
         texts = [p.text for p in doc.paragraphs]
@@ -92,3 +94,19 @@ def test_cjk_font():
         r_fonts = run._element.rPr.find(qn("w:rFonts"))
         assert r_fonts is not None
         assert r_fonts.get(qn("w:eastAsia")) == "微软雅黑"
+
+
+def test_get_processor_factory():
+    from backend.processors.docx_processor import DocxProcessor
+    from backend.processors.pdf_processor import PdfProcessor
+    from backend.processors.pptx_processor import PptxProcessor
+    from backend.processors.xlsx_processor import XlsxProcessor
+
+    assert isinstance(get_processor("test.docx"), DocxProcessor)
+    assert isinstance(get_processor("test.pptx"), PptxProcessor)
+    assert isinstance(get_processor("test.xlsx"), XlsxProcessor)
+    assert isinstance(get_processor("test.pdf"), PdfProcessor)
+    assert isinstance(get_processor("/path/to/FILE.DOCX"), DocxProcessor)
+
+    with pytest.raises(ValueError, match="Unsupported format"):
+        get_processor("test.txt")

@@ -1,10 +1,11 @@
 """Agent 角色定义 + 自定义工具"""
 
 import json
+from pathlib import Path
 
 from claude_agent_sdk import AgentDefinition, create_sdk_mcp_server, tool
 
-from backend.processors.docx_processor import DocxProcessor
+from backend.processors import get_processor
 
 # === Agent 角色 ===
 
@@ -38,14 +39,14 @@ CONTENT_EDITOR = AgentDefinition(
 - "首先...其次...最后..." → 减少明显的枚举标记
 
 工作流程:
-1. 使用 parse_docx 工具读取文档结构
+1. 使用 parse_document 工具读取文档结构
 2. 逐段改写，去除 AI 味
-3. 使用 replace_paragraphs 工具写入修改
+3. 使用 replace_content 工具写入修改
 4. 发消息给 format-designer 通知修改完成
 
 收到 quality-reviewer 的返工消息时，只修改审核员标记的段落，不要重做全文。
 """,
-    tools=["Read", "mcp__docflow-tools__parse_docx", "mcp__docflow-tools__replace_paragraphs"],
+    tools=["Read", "mcp__docflow-tools__parse_document", "mcp__docflow-tools__replace_content"],
     model="sonnet",
 )
 
@@ -56,21 +57,20 @@ FORMAT_DESIGNER = AgentDefinition(
 格式人类化原理: AI 生成的文档排版过于完美均匀，人类手动排版天然有微小不一致。
 你的任务是引入自然偏差，而非制造混乱。
 
-Word 格式操作:
-- 段落间距: 在 ±2pt 范围内随机偏移
-- 标题样式: 允许微小字号差异
-- 行距: ±0.05 倍随机偏移
-- 列表样式: 混用圆点、数字、短横线
+格式操作 (适用于所有文档类型):
+- 字体大小: 在 ±1pt 范围内微调
+- 字体名称: 选择合适的中文字体
+- 行距/段间距: ±0.05 倍随机偏移
 
 工作流程:
-1. 使用 parse_docx 分析当前排版
+1. 使用 parse_document 分析当前排版
 2. 生成 JSON 格式修改指令
-3. 使用 apply_format_changes 工具确定性执行
+3. 使用 apply_format 工具确定性执行
 4. 发消息给 quality-reviewer 通知格式修改完成
 
 所有变更限制在不破坏可读性的范围内。
 """,
-    tools=["Read", "mcp__docflow-tools__parse_docx", "mcp__docflow-tools__apply_format_changes"],
+    tools=["Read", "mcp__docflow-tools__parse_document", "mcp__docflow-tools__apply_format"],
     model="sonnet",
 )
 
@@ -90,7 +90,7 @@ QUALITY_REVIEWER = AgentDefinition(
 通过标准: 总分 >= 8.0
 
 工作流程:
-1. 使用 parse_docx 读取精修后的文档
+1. 使用 parse_document 读取精修后的文档
 2. 逐维度评分 (1-10)
 3. 使用 submit_score 工具提交评分结果
 
@@ -104,7 +104,7 @@ QUALITY_REVIEWER = AgentDefinition(
 
 最多审核 3 轮。第 3 轮后无论分数如何，输出当前版本。
 """,
-    tools=["Read", "mcp__docflow-tools__parse_docx", "mcp__docflow-tools__submit_score"],
+    tools=["Read", "mcp__docflow-tools__parse_document", "mcp__docflow-tools__submit_score"],
     model="sonnet",
 )
 
@@ -118,35 +118,58 @@ AGENTS = {
 
 # === 自定义工具 ===
 
-_processor = DocxProcessor()
 
-
-@tool("parse_docx", "解析 Word 文档结构，返回段落和表格", {"file_path": str})
-async def parse_docx_tool(args):
-    result = _processor.parse(args["file_path"])
+@tool("parse_document", "解析文档结构（支持 docx/pptx/xlsx/pdf）", {"file_path": str})
+async def parse_document_tool(args):
+    processor = get_processor(args["file_path"])
+    result = processor.parse(args["file_path"])
     return {"content": [{"type": "text", "text": json.dumps(result, ensure_ascii=False)}]}
 
 
-@tool("replace_paragraphs", "替换指定段落文本（保留格式）", {"file_path": str, "output_path": str, "replacements": str})
-async def replace_paragraphs_tool(args):
-    replacements = json.loads(args["replacements"])  # {"0": "新文本", "3": "新文本"}
-    out = _processor.replace_paragraph_text(args["file_path"], replacements, args["output_path"])
-    return {"content": [{"type": "text", "text": f"段落替换完成，输出: {out}"}]}
+@tool(
+    "replace_content",
+    "替换文档文本内容（保留格式，支持 docx/pptx/xlsx/pdf）",
+    {"file_path": str, "output_path": str, "replacements": str},
+)
+async def replace_content_tool(args):
+    replacements = json.loads(args["replacements"])
+    processor = get_processor(args["file_path"])
+    out = processor.replace_text(args["file_path"], replacements, args["output_path"])
+    return {"content": [{"type": "text", "text": f"内容替换完成，输出: {out}"}]}
 
 
-@tool("apply_format_changes", "执行 JSON 格式修改指令", {"file_path": str, "output_path": str, "changes": str})
-async def apply_format_changes_tool(args):
+@tool(
+    "apply_format",
+    "执行 JSON 格式修改指令（支持 docx/pptx/xlsx/pdf）",
+    {"file_path": str, "output_path": str, "changes": str},
+)
+async def apply_format_tool(args):
     changes = json.loads(args["changes"])
-    out = _processor.apply_format_changes(args["file_path"], changes, args["output_path"])
+    processor = get_processor(args["file_path"])
+    out = processor.apply_format_changes(args["file_path"], changes, args["output_path"])
     return {"content": [{"type": "text", "text": f"格式修改已应用，输出: {out}"}]}
 
 
-@tool("write_document", "将文本内容写入 docx 文件", {"output_path": str, "content": str})
+@tool("write_document", "将文本内容写入文档文件（支持 docx/pptx/xlsx）", {"output_path": str, "content": str})
 async def write_document_tool(args):
+    output_path = args["output_path"]
+    ext = Path(output_path).suffix.lower()
+
+    if ext == ".pptx":
+        _write_pptx(output_path, args["content"])
+    elif ext == ".xlsx":
+        _write_xlsx(output_path, args["content"])
+    else:
+        _write_docx(output_path, args["content"])
+
+    return {"content": [{"type": "text", "text": f"文档已创建: {output_path}"}]}
+
+
+def _write_docx(output_path: str, content: str):
     from docx import Document
 
     doc = Document()
-    for line in args["content"].split("\n"):
+    for line in content.split("\n"):
         line = line.strip()
         if not line:
             continue
@@ -160,8 +183,65 @@ async def write_document_tool(args):
             doc.add_paragraph(line[2:], style="List Bullet")
         else:
             doc.add_paragraph(line)
-    doc.save(args["output_path"])
-    return {"content": [{"type": "text", "text": f"文档已创建: {args['output_path']}"}]}
+    doc.save(output_path)
+
+
+def _write_pptx(output_path: str, content: str):
+    from pptx import Presentation
+    from pptx.util import Inches
+
+    prs = Presentation()
+    current_tf = None
+
+    for line in content.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("# ") or line.startswith("## "):
+            # 新页
+            slide = prs.slides.add_slide(prs.slide_layouts[6])
+            tx_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(6.5))
+            current_tf = tx_box.text_frame
+            current_tf.word_wrap = True
+            current_tf.text = line.lstrip("#").strip()
+        else:
+            if current_tf is None:
+                slide = prs.slides.add_slide(prs.slide_layouts[6])
+                tx_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.5), Inches(9), Inches(6.5))
+                current_tf = tx_box.text_frame
+                current_tf.word_wrap = True
+                current_tf.text = line
+            else:
+                p = current_tf.add_paragraph()
+                p.text = line.lstrip("- ")
+
+    if not prs.slides:
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+    prs.save(output_path)
+
+
+def _write_xlsx(output_path: str, content: str):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    row = 1
+    for line in content.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("# ") or line.startswith("## "):
+            ws.cell(row=row, column=1, value=line.lstrip("#").strip())
+        elif "|" in line and not line.startswith("|-"):
+            # 表格行
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            for ci, val in enumerate(cells, 1):
+                ws.cell(row=row, column=ci, value=val)
+        else:
+            ws.cell(row=row, column=1, value=line.lstrip("- "))
+        row += 1
+    wb.save(output_path)
+    wb.close()
 
 
 @tool("submit_score", "提交质量评分结果", {"scores": str})
@@ -184,5 +264,5 @@ async def submit_score_tool(args):
 docflow_tools = create_sdk_mcp_server(
     name="docflow-tools",
     version="1.0.0",
-    tools=[parse_docx_tool, replace_paragraphs_tool, apply_format_changes_tool, write_document_tool, submit_score_tool],
+    tools=[parse_document_tool, replace_content_tool, apply_format_tool, write_document_tool, submit_score_tool],
 )

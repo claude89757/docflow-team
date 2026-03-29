@@ -77,7 +77,7 @@ class DocxProcessor:
             "image_count": len(doc.inline_shapes),
         }
 
-    def replace_paragraph_text(self, file_path: str, replacements: dict[int, str], output_path: str) -> str:
+    def replace_text(self, file_path: str, replacements: dict[int, str], output_path: str) -> str:
         """替换指定段落的文本，保留格式"""
         doc = Document(file_path)
         for idx_str, new_text in replacements.items():
