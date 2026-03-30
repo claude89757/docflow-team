@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import type { WSMessage, TokenState } from '../types'
+import type { WSMessage, TokenState, ContextState } from '../types'
 import { MAX_RECONNECT_ATTEMPTS, BASE_RECONNECT_DELAY, MAX_RECONNECT_DELAY } from '../lib/api'
 
 const WS_URL = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
@@ -9,6 +9,7 @@ export function useWebSocket(taskId: string | null) {
   const [messages, setMessages] = useState<WSMessage[]>([])
   const [connected, setConnected] = useState(false)
   const [tokenState, setTokenState] = useState<TokenState>({ agents: {}, total: { input_tokens: 0, output_tokens: 0 } })
+  const [contextState, setContextState] = useState<ContextState>({ agents: {} })
   const reconnectAttempt = useRef(0)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const heartbeatTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -20,6 +21,7 @@ export function useWebSocket(taskId: string | null) {
     setMessages([])
     setConnected(false)
     setTokenState({ agents: {}, total: { input_tokens: 0, output_tokens: 0 } })
+    setContextState({ agents: {} })
   }
 
   useEffect(() => {
@@ -68,6 +70,18 @@ export function useWebSocket(taskId: string | null) {
               const totalOut = Object.values(agents).reduce((s, a) => s + a.output_tokens, 0)
               return { agents, total: { input_tokens: totalIn, output_tokens: totalOut } }
             })
+          } else if (msg.type === 'context_update') {
+            const agent = msg.agent as string
+            setContextState(prev => ({
+              agents: {
+                ...prev.agents,
+                [agent]: {
+                  context_used: (msg.context_used as number) || 0,
+                  context_max: (msg.context_max as number) || 200000,
+                  percentage: (msg.percentage as number) || 0,
+                },
+              },
+            }))
           } else {
             setMessages(prev => [...prev, msg])
           }
@@ -106,5 +120,15 @@ export function useWebSocket(taskId: string | null) {
 
   const clearMessages = useCallback(() => setMessages([]), [])
 
-  return { messages, connected, clearMessages, tokenState }
+  const sendMessage = useCallback((content: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'user_input',
+        content,
+        timestamp: Date.now(),
+      }))
+    }
+  }, [])
+
+  return { messages, connected, clearMessages, tokenState, contextState, sendMessage }
 }
