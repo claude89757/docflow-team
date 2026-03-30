@@ -17,7 +17,7 @@ interface Props {
   taskId?: string
 }
 
-export function ActivityItem({ entry, round, taskId }: Props) {
+export function ActivityItem({ entry, round: _round, taskId }: Props) {
   const { type, agent, target, content, scores, timestamp } = entry
   const [expanded, setExpanded] = useState(false)
 
