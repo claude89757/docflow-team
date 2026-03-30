@@ -13,7 +13,7 @@ type Page = 'home' | 'usage'
 function App() {
   const [taskId, setTaskId] = useState<string | null>(null)
   const [page, setPage] = useState<Page>('home')
-  const { messages, connected, tokenState } = useWebSocket(taskId)
+  const { messages, connected, tokenState, contextState, sendMessage } = useWebSocket(taskId)
 
   const teamComplete = useMemo(() => messages.some(m => m.type === 'team_complete'), [messages])
   const teamFailed = useMemo(() => messages.some(m => m.type === 'team_status' && m.status === 'failed'), [messages])
@@ -41,11 +41,13 @@ function App() {
     >
       {/* Landing */}
       {!taskId && page === 'home' && (
-        <div className="animate-fade-in">
+        <div>
           <HeroSection />
-          <FeatureCards />
-          <div className="mx-auto max-w-xl">
+          <div className="mx-auto mb-8 max-w-3xl animate-slide-up" style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}>
             <UnifiedInput onTask={handleTask} />
+          </div>
+          <div className="mx-auto mt-4 max-w-3xl animate-slide-up" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
+            <FeatureCards />
           </div>
         </div>
       )}
@@ -56,7 +58,14 @@ function App() {
       {/* Processing */}
       {taskId && (
         <>
-          <TeamWorkspace messages={messages} connected={connected} tokenState={tokenState} />
+          <TeamWorkspace
+            messages={messages}
+            connected={connected}
+            tokenState={tokenState}
+            contextState={contextState}
+            taskId={taskId || undefined}
+            onSendMessage={sendMessage}
+          />
           {(teamComplete || teamFailed) && (
             <ResultsPanel taskId={taskId} messages={messages} onReset={handleReset} />
           )}

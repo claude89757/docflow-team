@@ -1,19 +1,21 @@
-import type { MemberState, TokenState } from '../../types'
+import type { MemberState, TokenState, ContextState } from '../../types'
 import { AgentAvatar } from './AgentAvatar'
+import { UsageMiniPanel } from './UsageMiniPanel'
 import { MAX_ROUNDS } from '../../lib/api'
 
 interface Props {
   members: Record<string, MemberState>
   round: number
   tokenState?: TokenState
+  contextState?: ContextState
 }
 
-export function TeamSidebar({ members, round, tokenState }: Props) {
+export function TeamSidebar({ members, round, tokenState, contextState }: Props) {
   const displayMembers = Object.values(members).filter(m => m.role !== 'team-lead')
 
   return (
-    <aside className="w-full shrink-0 md:w-56">
-      <div className="sticky top-20">
+    <aside className="flex w-full shrink-0 flex-col md:w-56">
+      <div className="sticky top-20 flex max-h-[calc(100vh-120px)] flex-col">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
             AI 团队
@@ -35,6 +37,9 @@ export function TeamSidebar({ members, round, tokenState }: Props) {
             />
           ))}
         </div>
+        {tokenState && contextState && (
+          <UsageMiniPanel tokenState={tokenState} contextState={contextState} />
+        )}
       </div>
     </aside>
   )
