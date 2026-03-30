@@ -27,6 +27,24 @@ class UsageTracker:
             self.agents[agent_key] = {"input_tokens": 0, "output_tokens": 0}
         self.agents[agent_key]["input_tokens"] += input_tokens
         self.agents[agent_key]["output_tokens"] += output_tokens
+
+        # 写入 SQLite
+        try:
+            from backend.config import CONTEXT_WINDOW_MAX
+            from backend.services.message_store import add_usage_snapshot
+
+            total = self.agents[agent_key]["input_tokens"] + self.agents[agent_key]["output_tokens"]
+            add_usage_snapshot(
+                self.task_id,
+                agent_key,
+                self.agents[agent_key]["input_tokens"],
+                self.agents[agent_key]["output_tokens"],
+                context_used=total,
+                context_max=CONTEXT_WINDOW_MAX,
+            )
+        except Exception:
+            pass  # non-fatal
+
         return self.agents[agent_key]
 
     def get_total(self) -> dict[str, int]:
