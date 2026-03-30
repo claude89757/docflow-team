@@ -83,3 +83,48 @@ class WSMessage(BaseModel):
     type: str
     task_id: str
     data: dict
+
+
+class SessionResponse(BaseModel):
+    task_id: str
+    mode: str
+    status: str
+    description: str | None = None
+    source_file: str | None = None
+    output_file: str | None = None
+    final_score: float | None = None
+    rounds: int = 0
+    resumed_count: int = 0
+    interrupted_at: str | None = None
+    created_at: str
+    updated_at: str
+
+
+class SessionListResponse(BaseModel):
+    total: int
+    page: int
+    size: int
+    items: list[SessionResponse]
+
+
+class ConversationEntry(BaseModel):
+    id: int
+    agent: str
+    role: str
+    content: str
+    tool_name: str | None = None
+    token_count: int = 0
+    created_at: str
+
+
+class FilePreviewResponse(BaseModel):
+    text: str
+    stats: dict
+    stage: str
+
+
+class PricingConfig(BaseModel):
+    input_price_per_mtok: float
+    output_price_per_mtok: float
+    model_name: str
+    context_window_max: int

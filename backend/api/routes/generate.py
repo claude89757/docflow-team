@@ -19,6 +19,10 @@ async def generate_document(req: GenerateRequest, background_tasks: BackgroundTa
     task_dir = UPLOAD_DIR / task_id
     task_dir.mkdir(parents=True, exist_ok=True)
 
+    from backend.services.session_store import create_session
+
+    create_session(task_id=task_id, mode="generation", description=req.description)
+
     background_tasks.add_task(
         run_team,
         task_id=task_id,
