@@ -1,8 +1,10 @@
-import { RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { useState } from 'react'
+import { RefreshCw, CheckCircle2, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
 import type { ActivityEntry } from '../../types'
 import { getPersona } from '../../lib/agents'
 import { SCORE_LABELS } from '../../types'
 import type { ScoreResult } from '../../types'
+import { AgentConversation } from './AgentConversation'
 
 function timeStr(ts: number) {
   const d = new Date(ts)
@@ -12,10 +14,12 @@ function timeStr(ts: number) {
 interface Props {
   entry: ActivityEntry
   round: number
+  taskId?: string
 }
 
-export function ActivityItem({ entry }: Props) {
+export function ActivityItem({ entry, round, taskId }: Props) {
   const { type, agent, target, content, scores, timestamp } = entry
+  const [expanded, setExpanded] = useState(false)
 
   const persona = agent ? getPersona(agent) : getPersona('team-lead')
   const targetPersona = target ? getPersona(target) : null
@@ -49,6 +53,20 @@ export function ActivityItem({ entry }: Props) {
       <div className="animate-slide-up glass flex items-center gap-3 p-4" style={{ borderColor: 'rgba(255,59,48,0.15)' }}>
         <AlertTriangle className="h-6 w-6" style={{ color: 'var(--color-error)' }} />
         <span className="text-sm font-medium" style={{ color: 'var(--color-error)' }}>{content}</span>
+      </div>
+    )
+  }
+
+  // User input bubble (right-aligned, blue)
+  if (type === 'user_input') {
+    return (
+      <div className="animate-slide-up flex justify-end">
+        <div
+          className="max-w-[75%] rounded-xl rounded-br-sm px-3 py-2 text-sm"
+          style={{ backgroundColor: 'var(--color-primary)', color: 'white' }}
+        >
+          {content}
+        </div>
       </div>
     )
   }
@@ -155,22 +173,39 @@ export function ActivityItem({ entry }: Props) {
     )
   }
 
-  // Default: harness_decision, agent_working
+  // Default: harness_decision, agent_working — with expand/collapse
+  const canExpand = taskId && agent && agent !== 'team-lead' && (type === 'agent_working' || type === 'harness_decision')
+
   return (
-    <div className="animate-slide-up flex gap-3">
+    <div className="animate-slide-up">
       <div
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
-        style={{ background: persona.bgGradient, border: `0.5px solid ${persona.borderColor}` }}
+        className={`flex gap-3 ${canExpand ? 'cursor-pointer' : ''}`}
+        onClick={canExpand ? () => setExpanded(!expanded) : undefined}
       >
-        {persona.emoji}
-      </div>
-      <div className="glass min-w-0 flex-1 p-3" style={{ borderTopLeftRadius: 0 }}>
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm font-semibold" style={{ color: persona.color }}>{persona.name}</span>
-          <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{timeStr(timestamp)}</span>
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-base"
+          style={{ background: persona.bgGradient, border: `0.5px solid ${persona.borderColor}` }}
+        >
+          {persona.emoji}
         </div>
-        <p className="mt-0.5 break-words text-sm" style={{ color: 'var(--color-text-secondary)' }}>{content}</p>
+        <div className="glass min-w-0 flex-1 p-3" style={{ borderTopLeftRadius: 0 }}>
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-semibold" style={{ color: persona.color }}>{persona.name}</span>
+            <span className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{timeStr(timestamp)}</span>
+            {canExpand && (
+              <span className="ml-auto text-xs" style={{ color: 'var(--color-text-tertiary)' }}>
+                {expanded ? <ChevronDown className="inline h-3 w-3" /> : <ChevronRight className="inline h-3 w-3" />}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 break-words text-sm" style={{ color: 'var(--color-text-secondary)' }}>{content}</p>
+        </div>
       </div>
+      {expanded && taskId && agent && (
+        <div className="ml-11 mt-1 rounded-lg" style={{ border: '1px solid rgba(0,0,0,0.06)', maxHeight: '300px', overflowY: 'auto' }}>
+          <AgentConversation taskId={taskId} agent={agent} />
+        </div>
+      )}
     </div>
   )
 }
