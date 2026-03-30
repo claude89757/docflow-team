@@ -3,6 +3,7 @@ import { AppShell } from './components/AppShell'
 import { HeroSection } from './components/landing/HeroSection'
 import { FeatureCards } from './components/landing/FeatureCards'
 import { UnifiedInput } from './components/landing/UnifiedInput'
+import { SessionList } from './components/landing/SessionList'
 import { TeamWorkspace } from './components/workspace/TeamWorkspace'
 import { ResultsPanel } from './components/results/ResultsPanel'
 import { useWebSocket } from './hooks/useWebSocket'
@@ -48,6 +49,9 @@ function App() {
           </div>
           <div className="mx-auto mt-4 max-w-3xl animate-slide-up" style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}>
             <FeatureCards />
+          </div>
+          <div className="mx-auto mt-6 max-w-3xl animate-slide-up" style={{ animationDelay: '0.45s', animationFillMode: 'backwards' }}>
+            <SessionList onSelectTask={handleTask} />
           </div>
         </div>
       )}
