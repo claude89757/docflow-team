@@ -45,7 +45,7 @@ export function TokenDistribution({ history }: Props) {
                 <Cell key={i} fill={entry.color} />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => `${(value / 1000).toFixed(1)}K`} />
+            <Tooltip formatter={(value) => `${(Number(value) / 1000).toFixed(1)}K`} />
           </PieChart>
         </ResponsiveContainer>
         <div className="space-y-1.5">
