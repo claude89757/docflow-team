@@ -43,7 +43,13 @@ export function UsageDashboard() {
         <StatCard
           icon="💰"
           label="预估总费用"
-          value={summary ? `$${((summary.total_tokens || 0) / 1_000_000 * 9).toFixed(2)}` : '$0'}
+          value={summary && history.length > 0
+            ? `$${history.reduce((sum, h) => {
+                const inT = h.total?.input_tokens || 0
+                const outT = h.total?.output_tokens || 0
+                return sum + (inT / 1_000_000 * 3 + outT / 1_000_000 * 15)
+              }, 0).toFixed(2)}`
+            : '$0'}
         />
       </div>
 

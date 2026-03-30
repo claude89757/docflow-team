@@ -63,10 +63,13 @@ class WSManager:
 
     async def handle_user_input(self, task_id: str, content: str, sender_ws: WebSocket):
         """处理用户输入: 持久化 + 入队 + 回显"""
-        from backend.services.message_store import add_message
+        try:
+            from backend.services.message_store import add_message
 
-        payload = {"type": "user_input", "content": content}
-        add_message(task_id, "user_input", payload)
+            payload = {"type": "user_input", "content": content}
+            add_message(task_id, "user_input", payload)
+        except Exception:
+            logger.warning("user_input persist failed task=%s", task_id)
 
         queue = self.get_user_queue(task_id)
         await queue.put(content)

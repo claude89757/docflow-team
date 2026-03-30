@@ -54,6 +54,12 @@ async def process_uploaded(task_id: str, background_tasks: BackgroundTasks):
     if not source_file:
         raise HTTPException(404, "未找到上传的文件")
 
+    # 确保 session 记录存在（兼容旧任务）
+    from backend.services.session_store import create_session, get_session
+
+    if not get_session(task_id):
+        create_session(task_id=task_id, mode="refinement", source_file=Path(source_file).name)
+
     background_tasks.add_task(
         run_team,
         task_id=task_id,

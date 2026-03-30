@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { FilePreviewData, WSMessage } from '../types'
 import { fetchFilePreview } from '../lib/api'
 
@@ -7,6 +7,11 @@ export function useFilePreview(taskId: string | null, messages: WSMessage[]) {
   const [stage, setStage] = useState('output')
   const [loading, setLoading] = useState(false)
   const [availableStages, setAvailableStages] = useState<string[]>([])
+
+  const fileUpdateCount = useMemo(
+    () => messages.filter(m => m.type === 'file_update').length,
+    [messages],
+  )
 
   // Track available stages from file_update messages
   useEffect(() => {
@@ -43,7 +48,7 @@ export function useFilePreview(taskId: string | null, messages: WSMessage[]) {
     if (lastFileUpdate?.file_stage) {
       loadPreview(String(lastFileUpdate.file_stage))
     }
-  }, [messages.filter(m => m.type === 'file_update').length, loadPreview])
+  }, [fileUpdateCount, loadPreview]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return { preview, stage, loading, availableStages, loadPreview }
 }
