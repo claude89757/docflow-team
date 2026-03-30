@@ -2,6 +2,7 @@ import { Loader2, AlertCircle } from 'lucide-react'
 import { useUsage } from '../../hooks/useUsage'
 import { StatCard } from './StatCard'
 import { TokenChart } from './TokenChart'
+import { TokenDistribution } from './TokenDistribution'
 import { TaskHistory } from './TaskHistory'
 
 export function UsageDashboard() {
@@ -30,7 +31,7 @@ export function UsageDashboard() {
       <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>用量统计</h2>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
         <StatCard icon="📄" label="总任务数" value={summary?.total_tasks || 0} />
         <StatCard icon="🔤" label="总 Token 消耗" value={summary?.total_tokens || 0} />
         <StatCard icon="✅" label="成功率" value={`${summary?.success_rate || 0}%`} />
@@ -39,10 +40,18 @@ export function UsageDashboard() {
           label="平均耗时"
           value={summary?.avg_duration_seconds ? `${Math.round(summary.avg_duration_seconds)}s` : '0s'}
         />
+        <StatCard
+          icon="💰"
+          label="预估总费用"
+          value={summary ? `$${((summary.total_tokens || 0) / 1_000_000 * 9).toFixed(2)}` : '$0'}
+        />
       </div>
 
-      {/* Chart */}
-      <TokenChart history={history} />
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <TokenDistribution history={history} />
+        <TokenChart history={history} />
+      </div>
 
       {/* History */}
       <TaskHistory history={history} />
