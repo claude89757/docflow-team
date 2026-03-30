@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import type { WSMessage, TokenState, ContextState } from '../types'
-import { MAX_RECONNECT_ATTEMPTS, BASE_RECONNECT_DELAY, MAX_RECONNECT_DELAY } from '../lib/api'
+import { MAX_RECONNECT_ATTEMPTS, BASE_RECONNECT_DELAY, MAX_RECONNECT_DELAY, fetchMessages } from '../lib/api'
 
 const WS_URL = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
 
@@ -55,6 +55,14 @@ export function useWebSocket(taskId: string | null) {
       ws.onopen = () => {
         setConnected(true)
         reconnectAttempt.current = 0
+        // 加载历史消息（首次连接时）
+        if (taskId) {
+          fetchMessages(taskId).then(history => {
+            if (history.length > 0) {
+              setMessages(prev => prev.length === 0 ? history : prev)
+            }
+          }).catch(() => {})
+        }
       }
 
       ws.onmessage = (event) => {

@@ -195,6 +195,7 @@ async def run_team(
 ):
     """运行文档处理团队"""
 
+    from backend.config import CONTEXT_WINDOW_MAX
     from backend.services.message_store import add_conversation, add_message
     from backend.services.session_store import update_session
 
@@ -369,6 +370,9 @@ async def run_team(
             agent=display_name,
         )
 
+        with contextlib.suppress(Exception):
+            update_session(task_id, interrupted_at=display_name)
+
         try:
             prompt = str(input_data.get("prompt", ""))
             if prompt:
@@ -407,6 +411,18 @@ async def run_team(
                     },
                     agent=agent_key,
                 )
+                # 发送 context_update（上下文窗口占用）
+                ctx_used = agent_usage["input_tokens"] + agent_usage["output_tokens"]
+                await _send_and_persist(
+                    {
+                        "type": "context_update",
+                        "agent": agent_key,
+                        "context_used": ctx_used,
+                        "context_max": CONTEXT_WINDOW_MAX,
+                        "percentage": round(ctx_used / CONTEXT_WINDOW_MAX * 100, 1),
+                    },
+                    agent=agent_key,
+                )
 
         try:
             response = str(input_data.get("response", input_data.get("result", "")))
@@ -433,6 +449,31 @@ async def run_team(
                     add_conversation(task_id, current_agent, "tool_result", tool_result_str[:2000], tool_name=tool_name)
         except Exception:
             logger.warning("tool conversation persist failed task=%s", task_id, exc_info=True)
+
+        # 文件写入工具触发 file_update
+        file_tools = {"write_document", "replace_content", "apply_format"}
+        if any(ft in tool_name for ft in file_tools):
+            tool_input = input_data.get("tool_input", {})
+            output_path = str(tool_input.get("output_path", tool_input.get("file_path", "")))
+            file_stage = "output"
+            if "draft" in output_path:
+                file_stage = "draft"
+            elif "edited" in output_path:
+                file_stage = "edited"
+            elif "formatted" in output_path:
+                file_stage = "formatted"
+            raw_id = str(input_data.get("agent_id", ""))
+            file_agent = agent_id_map.get(raw_id) or _match_agent_key(raw_id) or "team-lead"
+            await _send_and_persist(
+                {
+                    "type": "file_update",
+                    "agent": file_agent,
+                    "file_stage": file_stage,
+                    "file_path": output_path,
+                    "changes_summary": f"{tool_name} → {file_stage}",
+                },
+                agent=file_agent,
+            )
 
         if "submit_score" in tool_name:
             tool_result = input_data.get("tool_result", "")

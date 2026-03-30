@@ -94,6 +94,12 @@ async def resume_task(task_id: str, background_tasks: BackgroundTasks):
         ws_manager=ws_manager,
     )
 
+    # 发送 session_resumed 通知
+    await ws_manager.send(
+        task_id,
+        {"type": "session_resumed", "task_id": task_id, "resumed_count": (session.get("resumed_count", 0) or 0) + 1},
+    )
+
     return {"task_id": task_id, "status": "resuming"}
 
 
