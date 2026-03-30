@@ -45,6 +45,10 @@ async def upload_document(file: UploadFile = File(...)):
     except OSError as e:
         raise HTTPException(507, f"文件写入失败: {e}") from None
 
+    from backend.services.session_store import create_session
+
+    create_session(task_id=task_id, mode="refinement", source_file=file.filename)
+
     return UploadResponse(
         task_id=task_id,
         filename=file.filename,

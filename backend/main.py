@@ -7,11 +7,15 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.api.routes.conversations import router as conversations_router
 from backend.api.routes.download import router as download_router
 from backend.api.routes.generate import router as generate_router
+from backend.api.routes.preview import router as preview_router
+from backend.api.routes.sessions import router as sessions_router
 from backend.api.routes.upload import router as upload_router
 from backend.api.routes.usage import router as usage_router
 from backend.api.routes.ws import router as ws_router
+from backend.services.db import init_db
 
 load_dotenv()
 
@@ -46,6 +50,12 @@ app.include_router(generate_router, prefix="/api")
 app.include_router(download_router, prefix="/api")
 app.include_router(usage_router)
 app.include_router(ws_router)
+app.include_router(sessions_router)
+app.include_router(conversations_router)
+app.include_router(preview_router)
+
+# 初始化数据库
+init_db()
 
 # 确保上传目录存在
 Path("uploads").mkdir(exist_ok=True)
