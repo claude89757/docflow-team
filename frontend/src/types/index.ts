@@ -29,6 +29,7 @@ export type ActivityType =
   | 'round_start'
   | 'complete'
   | 'error'
+  | 'user_input'
 
 export interface ActivityEntry {
   id: string
@@ -104,4 +105,56 @@ export interface UsageSummary {
   total_tokens: number
   success_rate: number
   avg_duration_seconds: number
+}
+
+// === Session Types ===
+
+export interface SessionInfo {
+  task_id: string
+  mode: string
+  status: string
+  description: string | null
+  source_file: string | null
+  output_file: string | null
+  final_score: number | null
+  rounds: number
+  resumed_count: number
+  interrupted_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// === Conversation Types ===
+
+export interface ConversationMessage {
+  id: number
+  agent: string
+  role: 'system' | 'user' | 'assistant' | 'tool_use' | 'tool_result'
+  content: string
+  tool_name: string | null
+  token_count: number
+  created_at: string
+}
+
+// === File Preview Types ===
+
+export interface FilePreviewData {
+  text: string
+  stats: Record<string, unknown>
+  stage: string
+}
+
+// === Context Window Types ===
+
+export interface ContextState {
+  agents: Record<string, { context_used: number; context_max: number; percentage: number }>
+}
+
+// === Pricing Types ===
+
+export interface PricingConfig {
+  input_price_per_mtok: number
+  output_price_per_mtok: number
+  model_name: string
+  context_window_max: number
 }

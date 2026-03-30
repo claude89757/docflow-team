@@ -1,4 +1,4 @@
-import type { WSMessage, ActivityEntry, ScoreResult, TeamState, MemberState } from '../types'
+import type { WSMessage, ActivityEntry, ActivityType, ScoreResult, TeamState, MemberState } from '../types'
 import { AGENT_LABELS } from '../types'
 
 function agentLabel(raw: string): string {
@@ -87,6 +87,29 @@ export function messageToActivity(msg: WSMessage, index: number): ActivityEntry 
       agent: 'quality-reviewer',
       content: `第 ${msg.round}/${msg.max} 轮: ${String(msg.reviewer_notes || '需要返工')}`,
       round: Number(msg.round),
+    }
+  }
+
+  if (msg.type === 'user_input' || msg.type === 'user_input_echo') {
+    return {
+      id, timestamp, type: 'user_input' as ActivityType,
+      content: String(msg.content || ''),
+    }
+  }
+
+  if (msg.type === 'user_input_received') {
+    return {
+      id, timestamp, type: 'harness_decision',
+      agent: 'team-lead',
+      content: `收到用户消息: ${String(msg.content || '').slice(0, 100)}`,
+    }
+  }
+
+  if (msg.type === 'file_update') {
+    return {
+      id, timestamp, type: 'tool_call',
+      agent: matchAgent(String(msg.agent || '')),
+      content: `文件更新: ${String(msg.changes_summary || msg.file_stage || '')}`,
     }
   }
 
