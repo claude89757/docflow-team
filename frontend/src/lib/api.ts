@@ -31,3 +31,43 @@ export const STARTER_SCENARIOS = [
     description: '请帮我打磨一份公文或正式邮件，优化措辞的正式程度、调整格式规范、提升整体的专业感。',
   },
 ] as const
+
+// Session & conversation API helpers
+export async function fetchSessions(limit = 5): Promise<{ items: import('../types').SessionInfo[]; total: number }> {
+  const res = await fetch(`${API_URL}/api/sessions?size=${limit}`)
+  if (!res.ok) throw new Error('Failed to fetch sessions')
+  return res.json()
+}
+
+export async function fetchMessages(taskId: string, afterId?: number): Promise<import('../types').WSMessage[]> {
+  const url = afterId
+    ? `${API_URL}/api/task/${taskId}/messages?after_id=${afterId}`
+    : `${API_URL}/api/task/${taskId}/messages`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('Failed to fetch messages')
+  return res.json()
+}
+
+export async function fetchConversations(taskId: string, agent: string): Promise<import('../types').ConversationMessage[]> {
+  const res = await fetch(`${API_URL}/api/task/${taskId}/agent/${agent}/conversations`)
+  if (!res.ok) throw new Error('Failed to fetch conversations')
+  return res.json()
+}
+
+export async function fetchFilePreview(taskId: string, stage = 'output'): Promise<import('../types').FilePreviewData> {
+  const res = await fetch(`${API_URL}/api/task/${taskId}/preview?stage=${stage}`)
+  if (!res.ok) throw new Error('Failed to fetch preview')
+  return res.json()
+}
+
+export async function fetchPricing(): Promise<import('../types').PricingConfig> {
+  const res = await fetch(`${API_URL}/api/config/pricing`)
+  if (!res.ok) throw new Error('Failed to fetch pricing')
+  return res.json()
+}
+
+export async function resumeTask(taskId: string): Promise<{ task_id: string; status: string }> {
+  const res = await fetch(`${API_URL}/api/task/${taskId}/resume`, { method: 'POST' })
+  if (!res.ok) throw new Error('Failed to resume task')
+  return res.json()
+}

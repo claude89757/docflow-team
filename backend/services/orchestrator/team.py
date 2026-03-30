@@ -195,6 +195,10 @@ async def run_team(
 ):
     """运行文档处理团队"""
 
+    from backend.config import CONTEXT_WINDOW_MAX
+    from backend.services.message_store import add_conversation, add_message
+    from backend.services.session_store import update_session
+
     await ws_manager.send(
         task_id,
         {
@@ -203,6 +207,18 @@ async def run_team(
             "task_id": task_id,
         },
     )
+    with contextlib.suppress(Exception):
+        add_message(task_id, "team_status", {"type": "team_status", "status": "started", "task_id": task_id})
+
+    update_session(task_id, status="pending")
+
+    async def _send_and_persist(data: dict, agent: str | None = None):
+        """发送 WebSocket 消息并持久化到 messages 表"""
+        await ws_manager.send(task_id, data)
+        try:
+            add_message(task_id, data.get("type", "unknown"), data, agent=agent)
+        except Exception:
+            logger.warning("message persist failed task=%s", task_id, exc_info=True)
 
     # PDF 输入 → 输出为 docx（PDF 不支持原地修改）
     out_format = "docx" if doc_format == "pdf" else doc_format
@@ -256,20 +272,19 @@ async def run_team(
 
             to_agent = agent_id_map.get(to_raw) or _match_agent_key(to_raw) or to_raw
 
-            await ws_manager.send(
-                task_id,
+            await _send_and_persist(
                 {
                     "type": "agent_message",
                     "from": from_agent,
                     "to": to_agent,
                     "content": content[:200],
                 },
+                agent=from_agent,
             )
 
             if "返工" in content or "rework" in content.lower():
                 rework_state["round"] += 1
-                await ws_manager.send(
-                    task_id,
+                await _send_and_persist(
                     {
                         "type": "rework_cycle",
                         "round": rework_state["round"],
@@ -281,14 +296,14 @@ async def run_team(
         elif tool_name == "TaskCreate":
             subject = str(tool_input.get("subject", ""))
             agent = _infer_agent_from_task(subject)
-            await ws_manager.send(
-                task_id,
+            await _send_and_persist(
                 {
                     "type": "agent_status",
                     "agent": agent,
                     "status": "pending",
                     "task": subject,
                 },
+                agent=agent,
             )
 
         elif tool_name == "TaskUpdate":
@@ -297,28 +312,42 @@ async def run_team(
             agent = agent_id_map.get(raw_id) or _match_agent_key(raw_id) or "team-lead"
             status_map = {"in_progress": "working", "completed": "completed"}
             if status in status_map:
-                await ws_manager.send(
-                    task_id,
+                await _send_and_persist(
                     {
                         "type": "agent_status",
                         "agent": agent,
                         "status": status_map[status],
                     },
+                    agent=agent,
                 )
 
         elif tool_name == "Agent":
             desc = str(tool_input.get("description", ""))
             last_agent_desc["value"] = desc
             agent_key = _match_agent_key(desc) or desc
-            await ws_manager.send(
-                task_id,
+            await _send_and_persist(
                 {
                     "type": "tool_call",
                     "tool": "Agent",
                     "target": agent_key,
                     "status": "started",
                 },
+                agent=agent_key,
             )
+
+        try:
+            queue = ws_manager.get_user_queue(task_id)
+            while not queue.empty():
+                user_msg = queue.get_nowait()
+                await _send_and_persist(
+                    {
+                        "type": "user_input_received",
+                        "content": user_msg,
+                        "status": "队长已收到，将在合适时机处理",
+                    }
+                )
+        except Exception:
+            pass
 
         return {}
 
@@ -332,26 +361,37 @@ async def run_team(
             agent_id_map[raw_id] = agent_key
 
         display_name = agent_key or raw_id
-        await ws_manager.send(
-            task_id,
+        await _send_and_persist(
             {
                 "type": "agent_status",
                 "agent": display_name,
                 "status": "working",
             },
+            agent=display_name,
         )
+
+        with contextlib.suppress(Exception):
+            update_session(task_id, interrupted_at=display_name)
+
+        try:
+            prompt = str(input_data.get("prompt", ""))
+            if prompt:
+                add_conversation(task_id, display_name, "user", prompt)
+        except Exception:
+            logger.warning("conversation persist failed task=%s", task_id, exc_info=True)
+
         return {}
 
     async def on_subagent_stop(input_data, tool_use_id, context):
         raw_id = str(input_data.get("agent_id", "unknown"))
         agent_key = agent_id_map.get(raw_id) or _match_agent_key(raw_id) or raw_id
-        await ws_manager.send(
-            task_id,
+        await _send_and_persist(
             {
                 "type": "agent_status",
                 "agent": agent_key,
                 "status": "completed",
             },
+            agent=agent_key,
         )
 
         # 尝试从 input_data 提取 token usage
@@ -361,8 +401,7 @@ async def run_team(
             output_t = int(usage.get("output_tokens", 0))
             if input_t or output_t:
                 agent_usage = usage_tracker.add_tokens(agent_key, input_t, output_t)
-                await ws_manager.send(
-                    task_id,
+                await _send_and_persist(
                     {
                         "type": "token_update",
                         "agent": agent_key,
@@ -370,12 +409,72 @@ async def run_team(
                         "output_tokens": agent_usage["output_tokens"],
                         "total_tokens": agent_usage["input_tokens"] + agent_usage["output_tokens"],
                     },
+                    agent=agent_key,
                 )
+                # 发送 context_update（上下文窗口占用）
+                ctx_used = agent_usage["input_tokens"] + agent_usage["output_tokens"]
+                await _send_and_persist(
+                    {
+                        "type": "context_update",
+                        "agent": agent_key,
+                        "context_used": ctx_used,
+                        "context_max": CONTEXT_WINDOW_MAX,
+                        "percentage": round(ctx_used / CONTEXT_WINDOW_MAX * 100, 1),
+                    },
+                    agent=agent_key,
+                )
+
+        try:
+            response = str(input_data.get("response", input_data.get("result", "")))
+            if response:
+                token_count = int(usage.get("output_tokens", 0)) if usage else 0
+                add_conversation(task_id, agent_key, "assistant", response, token_count=token_count)
+        except Exception:
+            logger.warning("conversation persist failed task=%s", task_id, exc_info=True)
 
         return {}
 
     async def on_post_tool(input_data, tool_use_id, context):
         tool_name = input_data.get("tool_name", "")
+
+        try:
+            raw_id = str(input_data.get("agent_id", ""))
+            current_agent = agent_id_map.get(raw_id) or _match_agent_key(raw_id) or "team-lead"
+            tool_input_str = json.dumps(input_data.get("tool_input", {}), ensure_ascii=False)
+            tool_result_str = str(input_data.get("tool_result", input_data.get("tool_response", "")))
+
+            if tool_name and current_agent != "team-lead":
+                add_conversation(task_id, current_agent, "tool_use", tool_input_str, tool_name=tool_name)
+                if tool_result_str:
+                    add_conversation(task_id, current_agent, "tool_result", tool_result_str[:2000], tool_name=tool_name)
+        except Exception:
+            logger.warning("tool conversation persist failed task=%s", task_id, exc_info=True)
+
+        # 文件写入工具触发 file_update
+        file_tools = {"write_document", "replace_content", "apply_format"}
+        if any(ft in tool_name for ft in file_tools):
+            tool_input = input_data.get("tool_input", {})
+            output_path = str(tool_input.get("output_path", tool_input.get("file_path", "")))
+            file_stage = "output"
+            if "draft" in output_path:
+                file_stage = "draft"
+            elif "edited" in output_path:
+                file_stage = "edited"
+            elif "formatted" in output_path:
+                file_stage = "formatted"
+            raw_id = str(input_data.get("agent_id", ""))
+            file_agent = agent_id_map.get(raw_id) or _match_agent_key(raw_id) or "team-lead"
+            await _send_and_persist(
+                {
+                    "type": "file_update",
+                    "agent": file_agent,
+                    "file_stage": file_stage,
+                    "file_path": output_path,
+                    "changes_summary": f"{tool_name} → {file_stage}",
+                },
+                agent=file_agent,
+            )
+
         if "submit_score" in tool_name:
             tool_result = input_data.get("tool_result", "")
             try:
@@ -398,7 +497,7 @@ async def run_team(
         """推送评分并持久化"""
         with contextlib.suppress(OSError):
             (Path(task_dir) / "scores.json").write_text(json.dumps(scores, ensure_ascii=False))
-        await ws_manager.send(task_id, {"type": "score_update", "scores": scores})
+        await _send_and_persist({"type": "score_update", "scores": scores}, agent="quality-reviewer")
         score_sent["count"] += 1
 
     options = ClaudeAgentOptions(
@@ -443,8 +542,7 @@ async def run_team(
                         event = message.event if hasattr(message, "event") else {}
                         event_type = event.get("type", "") if isinstance(event, dict) else ""
                         if event_type in ("content_block_start", "content_block_stop"):
-                            await ws_manager.send(
-                                task_id,
+                            await _send_and_persist(
                                 {
                                     "type": "stream_event",
                                     "event_type": event_type,
@@ -487,8 +585,7 @@ async def run_team(
                                 usage_tracker.final_score = _scores.get("total")
                         usage_tracker.save()
 
-                        await ws_manager.send(
-                            task_id,
+                        await _send_and_persist(
                             {
                                 "type": "team_complete",
                                 "status": "completed",
@@ -497,32 +594,33 @@ async def run_team(
                                 "report_file": report_path,
                             },
                         )
+                        update_session(task_id, status="completed", output_file=output_path if output_exists else None)
                         logger.info("team completed task=%s", task_id)
 
     except TimeoutError:
         logger.error("team timeout task=%s", task_id)
         usage_tracker.status = "failed"
         usage_tracker.save()
-        await ws_manager.send(
-            task_id,
+        await _send_and_persist(
             {
                 "type": "team_status",
                 "status": "failed",
                 "error": "处理超时（15 分钟），请检查文档复杂度或稍后重试",
             },
         )
+        update_session(task_id, status="failed")
     except Exception as e:
         logger.error("team failed task=%s", task_id, exc_info=True)
         usage_tracker.status = "failed"
         usage_tracker.save()
-        await ws_manager.send(
-            task_id,
+        await _send_and_persist(
             {
                 "type": "team_status",
                 "status": "failed",
                 "error": f"{type(e).__name__}: {str(e)}",
             },
         )
+        update_session(task_id, status="failed")
 
 
 def _generate_report(

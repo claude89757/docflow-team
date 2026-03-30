@@ -2,13 +2,16 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { MessageSquare } from 'lucide-react'
 import type { ActivityEntry } from '../../types'
 import { ActivityItem } from './ActivityItem'
+import { UserInputBar } from './UserInputBar'
 
 interface Props {
   activities: ActivityEntry[]
   round: number
+  taskId?: string
+  onSendMessage?: (content: string) => void
 }
 
-export function ActivityStream({ activities, round }: Props) {
+export function ActivityStream({ activities, round, taskId, onSendMessage }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -48,7 +51,7 @@ export function ActivityStream({ activities, round }: Props) {
           </div>
         ) : (
           activities.map((entry) => (
-            <ActivityItem key={entry.id} entry={entry} round={round} />
+            <ActivityItem key={entry.id} entry={entry} round={round} taskId={taskId} />
           ))
         )}
         <div ref={bottomRef} />
@@ -65,6 +68,10 @@ export function ActivityStream({ activities, round }: Props) {
         >
           跳到最新
         </button>
+      )}
+
+      {onSendMessage && (
+        <UserInputBar onSend={onSendMessage} />
       )}
     </div>
   )
